@@ -1810,9 +1810,8 @@ device_sshpass() {
     if [[ -z $pass ]]; then
         pass="alpine"
     fi
-    ssh_pass="$pass"
-    export SSHPASS="$ssh_pass"
-    if [[ "$ssh_pass" == *" "* ]]; then
+    export SSHPASS="$pass"
+    if [[ "$SSHPASS" == *" "* ]]; then
         warn "Your SSH password contains spaces. sshpass will not be used for this session"
         print "* It is recommended to change your password to remove spaces"
     else
@@ -6302,9 +6301,6 @@ ipsw_prepare() {
                 # patch restored_external for iPhone X downgrades to 14.3-15.x
                 ipsw_ipx=1
                 ipsw_prepare_ipx
-            elif [[ $ipsw_ipx == 1 && $target_vers_maj == 14 ]] && (( target_vers_min >= 2 )); then
-                # use 14.1 ramdisk for 14.2-14.8 to attempt avoiding root seal
-                ipsw_prepare_ipx
             else
                 ipsw_ipx=
             fi
@@ -7642,7 +7638,7 @@ shsh_save_onboard64() {
     local shsh2
     local disk
     if [[ $ssh_user == "mobile" ]]; then
-        disk="echo $ssh_pass | sudo -S "
+        disk="echo '$SSHPASS' | sudo -S "
     fi
     if (( device_vers_maj >= 16 )); then
         shsh2="$shsh"
@@ -7657,7 +7653,7 @@ shsh_save_onboard64() {
         log "Grabbing Cryptex APTicket"
         $ssh -p $ssh_port ${ssh_user}@127.0.0.1 "cat /private/preboot/cryptex1/current/apticket*" > apticket.im4m
         log "Getting Cryptex seed using x8A4"
-        local seed="$($ssh -p $ssh_port ${ssh_user}@127.0.0.1 "echo '$ssh_pass' | sudo -S /var/jb/usr/bin/x8A4 -x | grep 0x | cut -c 19- | cut -c -34")"
+        local seed="$($ssh -p $ssh_port ${ssh_user}@127.0.0.1 "echo '$SSHPASS' | sudo -S x8A4 -x | grep 0x | cut -c 19- | cut -c -34")"
         echo
         if [[ -z $seed ]]; then
             error "Failed to get Cryptex seed. Make sure x8A4 and dependencies are installed."
@@ -7896,9 +7892,6 @@ menu_print_info() {
         fi
         if [[ $restore_usepwndfu64 == 1 ]]; then
             warn "use-pwndfu flag detected. futurerestore will have --use-pwndfu enabled."
-        fi
-        if [[ $ipsw_ipx == 1 ]]; then
-            warn "enable-ipx flag detected, 14.1 ramdisk will be used. Proceed with caution"
         fi
     fi
     if [[ -n $device_build ]]; then
@@ -10469,7 +10462,7 @@ device_dump() {
     fi
     if [[ $device_mode == "Normal" ]]; then
         device_iproxy
-        if [[ -z $ssh_pass ]]; then
+        if [[ -z $SSHPASS ]]; then
             device_ssh_message
             device_sshpass
         fi
