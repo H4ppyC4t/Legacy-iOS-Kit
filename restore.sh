@@ -1802,7 +1802,7 @@ device_sshpass() {
         log "iOS 15+ device detected. Connecting to device SSH as mobile..."
         ssh_user="mobile"
     fi
-    local pass=$1
+    local pass="$1"
     if [[ -z $pass ]]; then
         read -s -p "$(input "Enter the SSH $ssh_user password of your iOS device: ")" pass
         echo
@@ -1811,8 +1811,16 @@ device_sshpass() {
         pass="alpine"
     fi
     ssh_pass="$pass"
-    scp="$dir/sshpass -p $pass $scp2"
-    ssh="$dir/sshpass -p $pass $ssh2"
+    export SSHPASS="$ssh_pass"
+    if [[ "$ssh_pass" == *" "* ]]; then
+        warn "Your SSH password contains spaces. sshpass will not be used for this session"
+        print "* It is recommended to change your password to remove spaces"
+    else
+        scp="$dir/sshpass -e "
+        ssh="$scp"
+    fi
+    scp+="$scp2"
+    ssh+="$ssh2"
 }
 
 device_iproxy() {
@@ -7649,7 +7657,7 @@ shsh_save_onboard64() {
         log "Grabbing Cryptex APTicket"
         $ssh -p $ssh_port ${ssh_user}@127.0.0.1 "cat /private/preboot/cryptex1/current/apticket*" > apticket.im4m
         log "Getting Cryptex seed using x8A4"
-        local seed="$($ssh -p $ssh_port ${ssh_user}@127.0.0.1 "echo $ssh_pass | sudo -S /var/jb/usr/bin/x8A4 -x | grep 0x | cut -c 19- | cut -c -34")"
+        local seed="$($ssh -p $ssh_port ${ssh_user}@127.0.0.1 "echo '$ssh_pass' | sudo -S /var/jb/usr/bin/x8A4 -x | grep 0x | cut -c 19- | cut -c -34")"
         echo
         if [[ -z $seed ]]; then
             error "Failed to get Cryptex seed. Make sure x8A4 and dependencies are installed."
@@ -8067,10 +8075,10 @@ menu_datamanage() {
                 fi
                 mkdir ../mount 2>/dev/null
                 if [[ $platform == "linux" ]]; then
-                    $sshfs -o ssh_command="$(cd .. && pwd)/bin/linux/$platform_arch/sshpass -p $ssh_pass $(pwd)/ssh -F $(pwd)/ssh_config -p $ssh_port" -d ${ssh_user}@127.0.0.1:$path ../mount &>../saved/sshfs.log &
+                    $sshfs -o ssh_command="$(cd .. && pwd)/bin/linux/$platform_arch/sshpass -e $(pwd)/ssh -F $(pwd)/ssh_config -p $ssh_port" -d ${ssh_user}@127.0.0.1:$path ../mount &>../saved/sshfs.log &
                     sshfs_pid=$!
                 else
-                    $dir/sshpass -p $ssh_pass $sshfs -d -F $(pwd)/ssh_config -p $ssh_port ${ssh_user}@127.0.0.1:$path ../mount &>../saved/sshfs.log &
+                    $dir/sshpass -e $sshfs -d -F $(pwd)/ssh_config -p $ssh_port ${ssh_user}@127.0.0.1:$path ../mount &>../saved/sshfs.log &
                     sshfs_pid=$!
                 fi
                 log "Device's \"$path\" should now be mounted on mount folder."
