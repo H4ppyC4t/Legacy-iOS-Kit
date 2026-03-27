@@ -5748,7 +5748,7 @@ restore_futurerestore() {
         #local fr_latest="$(cat commits | $jq -r '.[0].sha')"
         local fr_latest="45d0267ee24854d8bb9f5dbef29c3226af0d48db"
         local fr_branch="main"
-        if (( target_vers_maj >= 16 )) || [[ $restore_usedev == 1 ]]; then
+        if (( target_vers_maj >= 16 )) || [[ $restore_usedev == 1 || $device_proc == 11 ]]; then
             fr_latest="c473a1748559b4673e0c43fa73cfa4421857be12"
             fr_branch="dev"
         fi
