@@ -823,6 +823,7 @@ version_get() {
         fi
         local count=$(git rev-list --count HEAD --since="$month_start")
         version_current="v$yy.$mm.$(printf "%02d" "$count")"
+        unset TZ
 
     elif [[ -e ./resources/git_hash ]]; then
         version_current="$(cat ./resources/version)"
@@ -1646,13 +1647,9 @@ device_get_info() {
             device_latest_vers="17.7.10"
             device_latest_build="21H450"
         ;;
-        iPad7,1[12] )
-            device_latest_vers="18.7.5"
-            device_latest_build="22H311"
-        ;;
-        iPhone11,* )
-            device_latest_vers="18.7.6"
-            device_latest_build="22H320"
+        iPad7,1[12] | iPhone11,* )
+            device_latest_vers="18.7.7"
+            device_latest_build="22H333"
         ;;
     esac
     # if latest vers is not set, copy use vers to latest
@@ -2499,6 +2496,12 @@ device_fw_key_check() {
         temp ) build="$2";;
     esac
     local keys_path="$device_fw_dir/$build"
+
+    # do not continue if ipados/ios 18
+    if [[ $build == "22"* ]]; then
+        log "iOS 18 detected, skipping firmware key check"
+        return
+    fi
 
     log "Checking firmware keys in $keys_path"
     if [[ $(cat "$keys_path/index.html" 2>/dev/null | grep -c "$build") != 1 ]]; then
@@ -9641,6 +9644,7 @@ menu_ipsw_browse() {
                 print "* It is recommended to use turdus merula instead: https://sep.lol/"
                 pause
             ;;
+            #22[GH]* ) :;; # fr doesnt actually work on ipados/ios 18 so this is commented out for now
             * )
                 log "Selected IPSW ($device_target_vers) is not supported as target version."
                 print "* Latest SEP/BB is not compatible."
