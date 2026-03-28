@@ -1815,7 +1815,7 @@ device_sshpass() {
         warn "Your SSH password contains spaces. sshpass will not be used for this session"
         print "* It is recommended to change your password to remove spaces"
     else
-        scp="$dir/sshpass -e "
+        scp="$dir/sshpass -p$SSHPASS "
         ssh="$scp"
     fi
     scp+="$scp2"
@@ -8068,10 +8068,10 @@ menu_datamanage() {
                 fi
                 mkdir ../mount 2>/dev/null
                 if [[ $platform == "linux" ]]; then
-                    $sshfs -o ssh_command="$(cd .. && pwd)/bin/linux/$platform_arch/sshpass -e $(pwd)/ssh -F $(pwd)/ssh_config -p $ssh_port" -d ${ssh_user}@127.0.0.1:$path ../mount &>../saved/sshfs.log &
+                    $sshfs -o ssh_command="$(cd .. && pwd)/bin/linux/$platform_arch/sshpass -p$SSHPASS $(pwd)/ssh -F $(pwd)/ssh_config -p $ssh_port" -d ${ssh_user}@127.0.0.1:$path ../mount &>../saved/sshfs.log &
                     sshfs_pid=$!
                 else
-                    $dir/sshpass -e $sshfs -d -F $(pwd)/ssh_config -p $ssh_port ${ssh_user}@127.0.0.1:$path ../mount &>../saved/sshfs.log &
+                    $dir/sshpass -p$SSHPASS $sshfs -d -F $(pwd)/ssh_config -p $ssh_port ${ssh_user}@127.0.0.1:$path ../mount &>../saved/sshfs.log &
                     sshfs_pid=$!
                 fi
                 log "Device's \"$path\" should now be mounted on mount folder."
