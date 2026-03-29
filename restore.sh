@@ -5206,8 +5206,8 @@ ipsw_prepare_powder() {
 
     if [[ $ipsw_jailbreak == 1 ]]; then
         case $device_target_vers in
-            7.* ) JBFiles=("$jelbrek/aquila_7.tar");;
-            5.* ) JBFiles=("$jelbrek/aquila_5.tar");;
+            7.* ) JBFiles=("aquila_7.tar");;
+            5.* ) JBFiles=("aquila_5.tar");;
         esac
 
         # temporary measure for a5 ios 5
