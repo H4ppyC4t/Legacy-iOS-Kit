@@ -33,6 +33,15 @@ warn() {
 
 error() {
     echo -e "${color_R}[Error] ${1}\n${color_Y}${*:2}${color_N}"
+    exit 1
+}
+
+pause() {
+    input "Press Enter/Return to continue (or press Ctrl+C to cancel)"
+    read -s
+}
+
+exit_message() {
     echo
     print "* Save the terminal output now if needed. (macOS: Cmd+S, Linux: Ctrl+Shift+S)"
     if [[ -n $version_current && -n $git_hash ]]; then
@@ -43,16 +52,10 @@ error() {
     if [[ -n $platform ]]; then
         print "* Platform: $platform ($platform_ver - $platform_arch) $live_session_str"
     fi
-    clean_usbmuxd clean
-    exit 1
-}
-
-pause() {
-    input "Press Enter/Return to continue (or press Ctrl+C to cancel)"
-    read -s
 }
 
 clean() {
+    exit_message
     kill $httpserver_pid $iproxy_pid $anisette_pid $sshfs_pid 2>/dev/null
     popd &>/dev/null
     [[ -d "$(dirname "$0")/tmp$$/" ]] && rm -rf "$(dirname "$0")/tmp$$/"* "$(dirname "$0")/tmp$$/"
@@ -74,16 +77,16 @@ clean_sudo() {
 
 clean_usbmuxd() {
     [[ $platform != "linux" ]] && return
-    if [[ $1 == "clean" && $noclean != 1 ]]; then
+    if [[ $noclean != 1 ]]; then
         if [[ -z $device_disable_usbmuxd ]]; then
+            echo
             log "Terminating own usbmuxd instance(s)"
             if [[ $live_session != 1 ]]; then
                 print "* Enter your user password when prompted"
-                print "* Your password input will not be visible, but it is still being entered."
+                print "* Your password input may not be visible, but it is still being entered."
             fi
             $sudo -v
         fi
-        return
     fi
     if [[ -z $device_disable_sudoloop ]]; then
         clean_sudo
@@ -469,7 +472,7 @@ set_tool_paths() {
         if [[ $device_sudoloop == 1 || $live_session == 1 ]]; then
             if [[ $live_session != 1 ]]; then
                 print "* Enter your user password when prompted"
-                print "* Your password input will not be visible, but it is still being entered."
+                print "* Your password input may not be visible, but it is still being entered."
             fi
             $sudo -v
             #(while true; do $sudo -v; sleep 60; done) &
@@ -492,7 +495,7 @@ set_tool_paths() {
             if [[ $othertmp == 0 ]]; then
                 if [[ $live_session != 1 && $device_disable_sudoloop == 1 ]]; then
                     print "* Enter your user password when prompted"
-                    print "* Your password input will not be visible, but it is still being entered."
+                    print "* Your password input may not be visible, but it is still being entered."
                 fi
                 if [[ $(command -v systemctl) ]]; then
                     $sudo systemctl stop usbmuxd
@@ -643,7 +646,7 @@ install_depends() {
     if [[ $platform == "linux" ]]; then
         print "* Legacy iOS Kit will be installing dependencies from your distribution's package manager"
         print "* Enter your user password when prompted"
-        print "* Your password input will not be visible, but it is still being entered."
+        print "* Your password input may not be visible, but it is still being entered."
 
         if [[ $distro != "debian" && $distro != "fedora-atomic" ]]; then
             echo
@@ -3246,52 +3249,51 @@ ipsw_prepare_jailbreak() {
     fi
     local ExtraArgs=
     local JBFiles=()
-    local JBFiles2=()
     local daibutsu=$1
 
     if [[ $ipsw_jailbreak == 1 ]]; then
-        JBFiles+=("fstab_rw.tar")
         case $device_target_vers in
-            6.*  ) JBFiles+=("aquila_6.tar");;
-            5.*  ) JBFiles+=("aquila_5.tar");;
-            4.3* ) JBFiles+=("aquila_4.tar");;
-            4.[10]* | 3.2* | 3.1.3 ) JBFiles+=("greenpois0n/${device_type}_${device_target_build}.tar");;
+            6.*  ) JBFiles=("aquila_6.tar");;
+            5.*  ) JBFiles=("aquila_5.tar");;
+            4.3* ) JBFiles=("aquila_4.tar");;
+            4.[10]* | 3.2* ) JBFiles=("greenpois0n/${device_type}_${device_target_build}.tar");;
         esac
+        if [[ -n ${JBFiles[0]} ]]; then
+            JBFiles[0]=$jelbrek/${JBFiles[0]}
+        fi
         case $device_target_vers in
-            [43]* ) JBFiles[0]="fstab_old.tar"
+            [43].* ) JBFiles+=("$jelbrek/fstab_old.tar");;
+            *      ) JBFiles+=("$jelbrek/fstab_rw.tar");;
         esac
-        for i in {0..1}; do
-            JBFiles[i]=$jelbrek/${JBFiles[$i]}
-        done
         JBFiles+=("freeze.tar")
         case $device_target_vers in
             4.2.[8761] )
-                if [[ $device_type == "iPhone1,2" ]]; then
-                    JBFiles[1]=
-                else
+                if [[ $device_type != "iPhone1,2" ]]; then
                     ExtraArgs+=" -punchd"
-                    JBFiles[1]=$jelbrek/greenpois0n/${device_type}_${device_target_build}.tar
+                    JBFiles+=("$jelbrek/greenpois0n/${device_type}_${device_target_build}.tar")
                 fi
             ;;
             3.1* )
-                if [[ $device_type == "iPhone1,2" || $device_type == "iPhone2,1" || $ipsw_24o == 1 ]]; then
-                    JBFiles[1]=
+                if [[ $device_type != "iPhone1,2" && $device_type != "iPhone2,1" && $ipsw_24o != 1 ]]; then
+                    JBFiles+=("$jelbrek/greenpois0n/${device_type}_${device_target_build}.tar")
                 fi
             ;;
-            3.0* | 4.2* ) JBFiles[1]=;;
         esac
         case $device_target_vers in
-            [543]* ) JBFiles+=("$jelbrek/cydiasubstrate.tar");;
+            [543].* ) JBFiles+=("$jelbrek/cydiasubstrate.tar");;
         esac
         if [[ $device_target_vers == "3."* ]]; then
             JBFiles+=("$jelbrek/cydiahttpatch.tar")
         fi
         ExtraArgs+=" -S 30" # system partition add
         if [[ $ipsw_openssh == 1 ]]; then
-            cp $jelbrek/openssh.tar.gz $jelbrek/openssl.tar.gz .
-            gzip -d openssh.tar.gz
-            gzip -d openssl.tar.gz
-            JBFiles+=("$jelbrek/sshdeb.tar" "openssh.tar" "openssl.tar")
+            JBFiles+=("$jelbrek/sshdeb.tar")
+            if (( target_vers_maj >= 4 )); then
+                cp $jelbrek/openssh.tar.gz $jelbrek/openssl.tar.gz .
+                gzip -d openssh.tar.gz
+                gzip -d openssl.tar.gz
+                JBFiles+=("openssh.tar" "openssl.tar")
+            fi
         fi
         case $device_target_vers in
             [43]* ) :;;
@@ -6701,8 +6703,15 @@ device_ramdisk() {
     version=$device_target_vers
     build_id=$device_target_build
     if [[ -z $ipsw_justboot_path ]]; then
-        local ipsw_path="../${device_type}_${version}_${build_id}_Restore"
-        [[ -s "$ipsw_path.ipsw" ]] && ipsw_justboot_path="$ipsw_path"
+        local ipsw_path=$(ls ../${device_type}*${build_id}_Restore.ipsw 2>/dev/null)
+        if [[ -s "$ipsw_path" ]]; then
+            ipsw_justboot_path="${ipsw_path%%.ipsw*}"
+        else
+            local build_id2="$(echo "$build_id" | tr '[:upper:]' '[:lower:]')"
+            ipsw_path=$(ls ../${device_type_lower}*${build_id2}_restore.ipsw 2>/dev/null)
+            [[ -s "$ipsw_path" ]] && ipsw_justboot_path="${ipsw_path%%.ipsw*}"
+        fi
+        [[ -n $ipsw_justboot_path ]] && log "Found IPSW to use: $ipsw_justboot_path.ipsw"
     fi
     device_fw_key_check
     ipsw_get_url $build_id $device_type $version
@@ -8321,7 +8330,7 @@ device_sideloader() {
         read -p "$(input 'Apple ID: ')" apple_id
     done
     export APPLE_ID_USER="$apple_id"
-    print "* Your password input will not be visible, but it is still being entered."
+    print "* Your password input may not be visible, but it is still being entered."
     while [[ -z $apple_pass ]]; do
         read -s -p "$(input 'Password: ')" apple_pass
     done
@@ -10416,7 +10425,7 @@ device_ssh_message() {
     fi
     print "2. You will be prompted to enter the root/mobile password of your iOS device."
     print "  - The default password is: alpine"
-    print "  - Your password input will not be visible, but it is still being entered."
+    print "  - Your password input may not be visible, but it is still being entered."
     print "* You can also just press Enter/Return to enter the default password."
 }
 
@@ -10457,7 +10466,7 @@ device_dump() {
         device_buttons2
     elif [[ $device_mode == "none" ]]; then
         error "No existing $arg dump found while in no device mode. Cannot continue."
-    else
+    elif [[ $device_mode != "Normal" ]]; then
         log "Recovery/DFU mode device detected, entering pwnDFU mode to continue for SSH ramdisk."
         if [[ $platform == "linux" || $device_proc == 5 ]]; then
             print "* Note: If you can jailbreak and enter kDFU mode, exit now and proceed to do that instead."
@@ -11269,7 +11278,7 @@ device_altserver() {
     while [[ -z $apple_id ]]; do
         read -p "$(input 'Apple ID: ')" apple_id
     done
-    print "* Your password input will not be visible, but it is still being entered."
+    print "* Your password input may not be visible, but it is still being entered."
     while [[ -z $apple_pass ]]; do
         read -s -p "$(input 'Password: ')" apple_pass
     done
@@ -11764,13 +11773,6 @@ main() {
         "device"* | "shsh"* ) $mode;;
         * ) :;;
     esac
-
-    echo
-    print "* Save the terminal output now if needed. (macOS: Cmd+S, Konsole: Ctrl+Shift+S)"
-    print "* Legacy iOS Kit $version_current ($git_hash)"
-    print "* Platform: $platform ($platform_ver - $platform_arch) $live_session_str"
-    echo
-    clean_usbmuxd clean
 }
 
 for i in "$@"; do
