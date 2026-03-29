@@ -5185,6 +5185,8 @@ ipsw_prepare_ios4powder() {
 
 ipsw_prepare_powder() {
     local ExtraArgs
+    local JBFiles=()
+
     if [[ -s "$ipsw_custom.ipsw" ]]; then
         log "Found existing Custom IPSW. Skipping IPSW creation."
         return
@@ -5204,20 +5206,32 @@ ipsw_prepare_powder() {
 
     if [[ $ipsw_jailbreak == 1 ]]; then
         case $device_target_vers in
-            7.* ) ExtraArgs+=" $jelbrek/aquila_7.tar";;
-            5.* ) ExtraArgs+=" $jelbrek/cydiasubstrate.tar $jelbrek/aquila_5.tar";;
+            7.* ) JBFiles=("$jelbrek/aquila_7.tar");;
+            5.* ) JBFiles=("$jelbrek/aquila_5.tar");;
         esac
+
+        # temporary measure for a5 ios 5
+        if [[ $device_proc == 5 && $device_target_vers == "5."* ]]; then
+            JBFiles=("g1lbertJB/${device_type}_${device_target_build}.tar")
+        fi
+
+        if [[ -n ${JBFiles[0]} ]]; then
+            JBFiles[0]=$jelbrek/${JBFiles[0]}
+        fi
+        if [[ $target_vers_maj == 5 ]]; then
+            JBFiles+=("$jelbrek/cydiasubstrate.tar")
+        fi
         case $device_target_vers in
             [689].* ) :;;
-            * ) ExtraArgs+=" freeze.tar";;
+            * ) JBFiles+=("freeze.tar");;
         esac
         if [[ $ipsw_openssh == 1 ]]; then
             cp $jelbrek/openssh.tar.gz $jelbrek/openssl.tar.gz .
             gzip -d openssh.tar.gz
             gzip -d openssl.tar.gz
-            ExtraArgs+=" $jelbrek/sshdeb.tar openssh.tar openssl.tar"
+            JBFiles+=("$jelbrek/sshdeb.tar" "openssh.tar" "openssl.tar")
         fi
-        ExtraArgs+=" $jelbrek/LukeZGD.tar"
+        JBFiles+=("$jelbrek/LukeZGD.tar")
         cp $jelbrek/freeze.tar.gz .
         gzip -d freeze.tar.gz
     fi
@@ -5266,8 +5280,8 @@ ipsw_prepare_powder() {
         ExtraArgs+=" ../saved/$device_type/activation-$device_ecid.tar"
     fi
 
-    log "Preparing custom IPSW: $dir/powdersn0w $ipsw_path.ipsw temp.ipsw -base $ipsw_base_path.ipsw $ExtraArgs"
-    "$dir/powdersn0w" "$ipsw_path.ipsw" temp.ipsw -base "$ipsw_base_path.ipsw" $ExtraArgs
+    log "Preparing custom IPSW: $dir/powdersn0w $ipsw_path.ipsw temp.ipsw -base $ipsw_base_path.ipsw $ExtraArgs ${JBFiles[*]}"
+    "$dir/powdersn0w" "$ipsw_path.ipsw" temp.ipsw -base "$ipsw_base_path.ipsw" $ExtraArgs ${JBFiles[@]}
 
     if [[ ! -e temp.ipsw ]]; then
         if [[ $platform == "macos" && $platform_arch == "arm64" ]]; then
