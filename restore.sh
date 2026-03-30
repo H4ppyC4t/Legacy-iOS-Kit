@@ -4668,7 +4668,7 @@ ipsw_prepare_ios7touch4() {
 }
 
 ipsw_prepare_ios6touch3() {
-    local sundance="../saved/SundanceInH2A_$platform"
+    local sundance="../saved/SundanceInH2A"
     local ipsw_path2="${device_type_special}_${device_target_vers}_${device_target_build}_Restore"
     local ipsw_base_path2="${device_type}_${device_base_vers}_${device_base_build}_Restore"
     local ipsw_custom2="${device_type}_${device_target_vers}_${device_target_build}_Custom"
@@ -4684,18 +4684,20 @@ ipsw_prepare_ios6touch3() {
     fi
 
     log "Preparing SundanceInH2A"
+    if [[ -s ${sundance}_macos/Sundancer ]]; then
+        mv ${sundance}_macos/ ${sundance}/
+    fi
+    if [[ -d ${sundance}_linux ]]; then
+        rm -rf ${sundance}_linux/
+    fi
     if [[ -s $sundance/Sundancer ]]; then
         pushd $sundance >/dev/null
         git reset --hard
         git pull
         popd >/dev/null
     else
-        local repo
+        local repo="https://github.com/NyanSatan/SundanceInH2A"
         rm -rf $sundance
-        case $platform in
-            "macos" ) repo="https://github.com/NyanSatan/SundanceInH2A";;
-            "linux" ) repo="https://github.com/LukeZGD/SundanceInH2A";;
-        esac
         log "git clone: $repo"
         git clone $repo $sundance
     fi
