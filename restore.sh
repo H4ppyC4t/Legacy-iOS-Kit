@@ -7647,7 +7647,7 @@ shsh_save_onboard64() {
     elif (( device_vers_maj >= 16 )); then
         print "* Make sure to have the following installed for Cryptex:"
         print "    libkrw0 1.1.2, libkrw0-tfp0 1.1.2, libx8a4-1, x8A4"
-        print "* You may install these from this repo: https://cydia.ichitaso.com/secret-repo"
+        print "* You may install these from this repo: https://lukezgd.github.io/x8a4"
         print "* You may also install debs from here: https://github.com/Cryptiiiic/x8A4/releases"
     fi
     echo
@@ -7706,6 +7706,7 @@ shsh_save_onboard64() {
         fi
     fi
     log "Successfully saved $device_vers blobs: $shsh"
+    kill $iproxy_pid
 }
 
 shsh_save_onboard() {
@@ -8017,7 +8018,7 @@ menu_appmanage() {
         if (( device_vers_maj >= 5 )); then
             menu_items+=("Install IPA (appinst)")
         fi
-        [[ $device_unactivated != 1 ]] && menu_items+=("Install IPA (AppSync)")
+        [[ $device_unactivated != 1 ]] && menu_items+=("Install IPA (ideviceinstaller)")
         if (( device_vers_maj >= 4 )); then
             menu_items+=("Dump App as IPA" "Dump All Apps as IPA")
         fi
@@ -8190,7 +8191,7 @@ menu_ipa() {
         menu_print_info
         if [[ $1 == "Install IPA (appinst)" ]]; then
             print "* Make sure that appinst and OpenSSH are installed on your device."
-        elif [[ $1 == "Install IPA (AppSync)" ]]; then
+        elif [[ $1 == "Install IPA (ideviceinstaller)" ]]; then
             print "* Make sure that AppSync is installed on your device, if the IPA you are installing is cracked."
         else
             print "* Sideload IPA is for iOS 6 and newer. Sideloading will require an Apple ID."
@@ -8200,7 +8201,7 @@ menu_ipa() {
                 print "* There are 2 options for sideloading, \"using Sideloader\" is recommended."
             fi
             print "* If you have AppSync installed, or are installing an app with a valid"
-            print "  signature, go to App Management -> Install IPA (AppSync) or (appinst) instead."
+            print "  signature, go to App Management -> Install IPA (ideviceinstaller) or (appinst) instead."
             if [[ $device_unactivated == 1 ]]; then
                 echo
                 warn "Device is not activated. Sideload IPA option is not available."
@@ -8238,7 +8239,7 @@ menu_ipa() {
         case $selected in
             "Select IPA" ) menu_ipa_browse;;
             "Install IPA" )
-                if [[ $1 == "Install IPA (AppSync)" ]]; then
+                if [[ $1 == "Install IPA (ideviceinstaller)" ]]; then
                     device_ideviceinstaller
                 else
                     device_appinst
@@ -10514,6 +10515,7 @@ device_dump() {
                 warn "bbticket not found in tar. Will not save baseband dump."
             fi
         fi
+        kill $iproxy_pid
     else
         device_enter_ramdisk $arg
         device_dumprd
@@ -10524,7 +10526,6 @@ device_dump() {
             exit
         fi
     fi
-    kill $iproxy_pid
     if [[ ! -e $dump ]]; then
         error "Failed to dump $arg from device. Please run the script again" "* Make sure to have OpenSSH installed."
     fi
