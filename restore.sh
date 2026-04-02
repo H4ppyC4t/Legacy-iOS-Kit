@@ -7963,6 +7963,12 @@ menu_main() {
                 menu_items+=("Exit Recovery Mode")
             elif [[ $device_mode == "WTF" && $debug_mode == 1 ]]; then
                 menu_items+=("Enter pwnDFU Mode")
+            elif [[ $device_mode == "Normal" ]] && (( device_proc >= 8 )); then
+                if (( device_vers_maj == 15 && device_vers_min >= 2 )) || # ios 15.2+
+                   (( device_vers_maj == 16 && device_vers_min <= 6 )) || # ios 16.0-16.6.1
+                   [[ $device_vers == "17.0" || $device_build == "20H18" ]]; then # ios 17.0 and 16.7 20h18
+                    menu_items+=("Install TrollStore")
+                fi
             fi
         fi
         if [[ $device_proc != 1 && $device_type != "iPod2,1" ]] && (( device_proc < 11 )); then
@@ -7998,6 +8004,15 @@ menu_main() {
             "Exit Recovery Mode" ) mode="exitrecovery";;
             "Just Boot" ) menu_justboot;;
             "Pair Device" ) device_pair;;
+            "Install TrollStore" )
+                print "* This option will install TrollStore to your device using TrollRestore."
+                print "* This method of installing TrollStore is compatible with iOS 15.2-15.8.x, 16.0-16.6.1, 16.7 RC, and 17.0."
+                select_yesno
+                if [[ $? != 1 ]]; then
+                    continue
+                fi
+                mode="device_trollrestore"
+            ;;
             "Exit" ) mode="exit";;
         esac
     done
@@ -10180,8 +10195,28 @@ menu_usefulutilities() {
         select_option "${menu_items[@]}"
         selected="${menu_items[$?]}"
         case $selected in
-            "Hacktivate Device" ) mode="device_hacktivate";;
-            "Revert Hacktivation" ) mode="device_reverthacktivate";;
+            "Hacktivate Device" )
+                print "* Note: This is for hacktivating devices that are already restored and jailbroken with Legacy iOS Kit."
+                print "* If this is not what you want, you might be looking for the \"Restore/Downgrade\" option instead."
+                print "* From there, enable both \"Jailbreak Option\" and \"Hacktivate Option.\""
+                echo
+                print "* Hacktivate Device: This will patch lockdownd on your device."
+                print "* Hacktivation is for iOS versions 3.1 to 6.1.6."
+                select_yesno
+                if [[ $? != 1 ]]; then
+                    continue
+                fi
+                mode="device_hacktivate"
+            ;;
+            "Revert Hacktivation" )
+                print "* This will use revert hacktivation for this device."
+                print "* This option can only be used if the hacktivation is done using Legacy iOS Kit's \"Hacktivate Device\" option."
+                select_yesno
+                if [[ $? != 1 ]]; then
+                    continue
+                fi
+                mode="device_reverthacktivate"
+            ;;
             "Enter kDFU Mode" ) mode="kdfu";;
             "Disable/Enable Exploit" ) menu_remove4;;
             "SSH Ramdisk" ) mode="device_enter_ramdisk";;
@@ -10671,13 +10706,6 @@ device_hacktivate() {
         $ideviceactivation activate
     fi
     local patch="../resources/firmware/FirmwareBundles/Down_${type}_${device_vers}_${build}.bundle/lockdownd.patch"
-    print "* Note: This is for hacktivating devices that are already restored and jailbroken with Legacy iOS Kit."
-    print "* If this is not what you want, you might be looking for the \"Restore/Downgrade\" option instead."
-    print "* From there, enable both \"Jailbreak Option\" and \"Hacktivate Option.\""
-    echo
-    print "* Hacktivate Device: This will patch lockdownd on your device."
-    print "* Hacktivation is for iOS versions 3.1 to 6.1.6."
-    pause
     device_iproxy
     device_sshpass
     if [[ $device_type == "iPhone3,3" && $device_vers == "4.2"* ]]; then
@@ -10708,9 +10736,6 @@ device_hacktivate() {
 }
 
 device_reverthacktivate() {
-    print "* This will use revert hacktivation for this device."
-    print "* This option can only be used if the hacktivation is done using Legacy iOS Kit's \"Hacktivate Device\" option."
-    pause
     device_iproxy
     print "* The default root password is: alpine"
     device_sshpass
@@ -11658,6 +11683,35 @@ device_erase() {
     fi
     log "Proceeding."
     "$dir/idevicebackup2" erase
+}
+
+device_trollrestore() {
+    local trollrestore="../saved/TrollRestore"
+    local venv="${trollrestore}_venv"
+    device_pair
+    if [[ ! -d $trollrestore ]]; then
+        log "Downloading TrollRestore"
+        file_download https://github.com/JJTech0130/TrollRestore/releases/download/1.0/TrollRestore_Linux.zip TrollRestore_Linux.zip 0673de2ebb9d17351231d6d6a615bb0933e43b0a
+        mkdir -p $trollrestore
+        file_extract TrollRestore_Linux.zip $trollrestore
+    fi
+
+    if [[ ! -d $venv || ! -s $venv/bin/python3 ]]; then
+        log "Creating venv"
+        python3 -m venv $venv
+    fi
+    if [[ ! -d $venv || ! -s $venv/bin/python3 ]]; then
+        error "Creation of venv seems to have failed. Please run the script again" \
+        "* If you do not have Python 3 installed, install it since TrollRestore requires it."
+    fi
+
+    log "Installing dependencies using pip..."
+    sed -i.bak '1s/.*/pymobiledevice3<=6.2.0/' $trollrestore/requirements.txt
+    $venv/bin/pip install -r $trollrestore/requirements.txt
+
+    log "Running TrollRestore..."
+    print "* When it prompts to enter app name, type Tips and press Enter/Return"
+    "$(cd .. && pwd)/saved/TrollRestore_venv/bin/python3" $trollrestore/trollstore.py
 }
 
 main() {
