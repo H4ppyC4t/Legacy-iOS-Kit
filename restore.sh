@@ -2269,7 +2269,7 @@ device_enter_mode() {
                     fi
                 fi
             elif [[ $device_proc == 7 && $platform == "macos" && $platform_arch == "arm64" ]]; then
-                tool="ipwnder_lite"
+                tool="ipwnder2"
             fi
 
             if [[ $platform == "linux" ]]; then
@@ -2297,6 +2297,13 @@ device_enter_mode() {
                 print "* If pwning fails and gets stuck, you can press Ctrl+C to cancel, then re-enter DFU and retry."
                 $ipwnder -p
                 tool_pwned=$?
+            elif [[ $tool == "ipwnder2" ]]; then
+                log "Placing device to pwnDFU mode using ipwnder_lite"
+                print "* If pwning fails and gets stuck, you can press Ctrl+C to cancel, then re-enter DFU and retry."
+                ${ipwnder}2 -p
+                tool_pwned=$?
+                log "gaster reset"
+                $gaster reset
             elif [[ $tool == "ipwnder_lite" ]]; then
                 log "Placing device to pwnDFU mode using ipwnder_lite"
                 [[ $device_proc == 6 ]] && print "* If it gets stuck at \"[set_global_state] (2/3) e0004051\" or e000404f, the exploit failed. Just press Ctrl+C to cancel, then re-enter DFU and retry."
