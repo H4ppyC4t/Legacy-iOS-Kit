@@ -1652,7 +1652,7 @@ device_get_info() {
         ;;
         iPad7,1[12] | iPhone11,* )
             device_latest_vers="18.7.7"
-            device_latest_build="22H333"
+            device_latest_build="22H340"
         ;;
     esac
     # if latest vers is not set, copy use vers to latest
@@ -6771,6 +6771,7 @@ device_ramdisk() {
                 "Kernelcache" )   name="kernelcache.release.$hwmodel";;
             esac
         fi
+        [[ $name == *".dmg" ]] && name="${name%%.dmg*}.dmg"
 
         log "$getcomp"
         if [[ -n $ipsw_justboot_path ]]; then
