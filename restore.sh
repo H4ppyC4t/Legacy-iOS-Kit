@@ -2768,6 +2768,13 @@ ipsw_preference_set() {
             ipsw_nojailbreak_message
         ;;
         esac
+    elif [[ $device_type == "iPod2,1" && $ipsw_24o != 1 ]]; then
+        case $device_target_vers in
+        3.1* )
+            ipsw_canjailbreak=
+            ipsw_nojailbreak_message
+        ;;
+        esac
     fi
 
     # ipsw_nskip being 1 means that it will always create/use a custom ipsw.
@@ -6994,8 +7001,12 @@ device_ramdisk() {
             device_ramdisk_iosvers
             vers=$device_vers
             build=$device_build
+            log "$device_type is on iOS $vers-$build"
 
             if [[ -n $($ssh -p $ssh_port root@127.0.0.1 "ls /mnt1/bin/bash 2>/dev/null") ]]; then
+                case $vers in
+                    4.[10]* | 3.[21]* ) $ssh -p $ssh_port root@127.0.0.1 "mkdir -p /mnt1/private/var/db; echo '' > /mnt1/private/var/db/.launchd_use_gmalloc";;
+                esac
                 log "Mounting data partition"
                 $ssh -p $ssh_port root@127.0.0.1 "mount.sh pv"
                 warn "Your device seems to be already jailbroken. Cannot continue jailbreaking."
@@ -9996,8 +10007,7 @@ menu_flags() {
             "Enable jailbreak flag" )
                 warn "This will enable the --jailbreak flag."
                 print "* This will enable the jailbreak option for the custom IPSW."
-                print "* This is mostly useful for 4.1 and lower, where jailbreak option is disabled in most cases."
-                print "* It is disabled for those versions by default because of issues with the custom IPSW jailbreak."
+                print "* This is mostly useful for 4.1 and lower, where jailbreak option is disabled in some cases."
                 print "* The recommended method is to jailbreak after the restore instead."
                 print "* Do not enable this if you do not know what you are doing."
                 local opt
@@ -10758,7 +10768,7 @@ restore_customipsw_confirm() {
     print "* This option is only for restoring with IPSWs NOT made with Legacy iOS Kit, like whited00r or GeekGrade."
     if [[ $device_newbr == 1 ]]; then
         warn "Your device is a new bootrom model and some custom IPSWs might not be compatible."
-        print "* For iPhone 3GS, after restoring you will need to go to Useful Utilities -> Install alloc8 Exploit"
+        [[ $device_type == "iPhone2,1" ]] && print "* For iPhone 3GS, after restoring you will need to go to Useful Utilities -> Install alloc8 Exploit"
     else
         warn "Do NOT use this option for powdersn0w or jailbreak IPSWs made with Legacy iOS Kit!"
     fi
