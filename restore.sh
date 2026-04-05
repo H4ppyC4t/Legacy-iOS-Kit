@@ -2061,11 +2061,7 @@ device_enter_mode() {
             fi
 
             echo "chmod +x /tmp/kloader*" > kloaders
-            if [[ $device_vers_maj == 10 ]]; then
-                echo '[[ $(uname -a | grep -c "MarijuanARM") == 1 ]] && /tmp/kloader_hgsp /tmp/pwnediBSS || \
-                /tmp/kloader /tmp/pwnediBSS' >> kloaders
-                sendfiles+=("../resources/kloader/kloader_hgsp" "../resources/kloader/kloader")
-            elif (( device_vers_maj <= 5 )); then
+            if (( device_vers_maj <= 5 )); then
                 opt="kloader_axi0mX"
                 case $device_type in
                     iPad2,4 | iPad3,* ) opt="kloader5";; # needed for ipad 3 ios 5, unsure for ipad2,4
