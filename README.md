@@ -205,3 +205,6 @@
     - Mineek's [restored_external patcher](https://gist.github.com/mineek/16c2607c928477dcd273e680e40a1c90) for iPhone X downgrades to 14.3-15.x
     - [KPlooshFinder](https://github.com/plooshi/KPlooshFinder/tree/amfi-only)
     - [kerneldiff](https://gist.github.com/LukeZGD/8c719b613ca28d6883552437bdd500de)
+- iPad 1 and iPod touch 3 unofficial upgrades:
+    - [SundanceInH2A](https://github.com/NyanSatan/SundanceInH2A) - NyanSatan
+    - [ipad-1-ios-7](https://github.com/amy-and-nicole/ipad-1-ios-7) - amy-and-nicole and pwnerblu, also uses stuff from SundanceInH2A

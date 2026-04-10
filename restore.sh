@@ -4476,8 +4476,10 @@ ipsw_prepare_touch4ios7() {
     local all_flash2="$ipsw_custom/$all_flash"
     local patches="../resources/patch/touch4-ios7"
     local saves="../saved/$device_type/touch4-ios7"
-    local ipad1ios7="../saved/ipad1-ios7"
+    local ipad1ios7="../saved/ipad1-ios7/repo"
     local sundance="../saved/SundanceInH2A"
+    local kc="../saved/ipad1-ios7/kernelcache.release.n90" # iPhone3,1 7.1.2
+    local ramdisk6="../saved/ipad1-ios7/048-2516-005.dmg" # iPad2,1 6.1.3
 
     if [[ -e "$ipsw_custom.ipsw" ]]; then
         log "Found existing Custom IPSW. Skipping IPSW creation."
@@ -4485,6 +4487,29 @@ ipsw_prepare_touch4ios7() {
     fi
 
     if [[ $device_type == "iPad1,1" ]]; then
+        log "Preparing files"
+        mkdir -p $ipad1ios7
+        if [[ ! -s $kc ]]; then
+            log "Downloading iPhone3,1 7.1.2 kernelcache"
+            "$dir/pzb" -g $(basename $kc) -o kc "https://secure-appldnld.apple.com/iOS7.1/031-4812.20140627.cq6y8/iPhone3,1_7.1.2_11D257_Restore.ipsw"
+            local sha="b7b8771c6b54f472b1342f5cb92e3cf730ac9ef7"
+            local sha_local="$($sha1sum kc | awk '{print $1}')"
+            if [[ $sha_local != "$sha" ]]; then
+                error "SHA1sum mismatch. Expected $ibss_sha, got $ibss_sha_local. Please run the script again"
+            fi
+            mv kc $kc
+        fi
+        if [[ ! -s $ramdisk6 ]]; then
+            log "Downloading iPad2,1 6.1.3 ramdisk"
+            "$dir/pzb" -g $(basename $ramdisk6) -o ramdisk6 "https://secure-appldnld.apple.com/iOS6.1/091-2397.20130319.EEae9/iPad2,1_6.1.3_10B329_Restore.ipsw"
+            local sha="dcb5760e02a2abc4cfec610cca8c359179c3eebc"
+            local sha_local="$($sha1sum ramdisk6 | awk '{print $1}')"
+            if [[ $sha_local != "$sha" ]]; then
+                error "SHA1sum mismatch. Expected $ibss_sha, got $ibss_sha_local. Please run the script again"
+            fi
+            mv ramdisk6 $ramdisk6
+        fi
+
         log "Preparing ipad-1-ios-7"
         if [[ ! -s $ipad1ios7/run.tool ]]; then
             local repo="https://github.com/amy-and-nicole/ipad-1-ios-7"
@@ -4545,31 +4570,39 @@ ipsw_prepare_touch4ios7() {
 
     log "Patch iBEC"
     "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "rd=md0 -v amfi=0xff cs_enforcement_disable=1"
-    #$bspatch iBEC.dec iBEC.patched $patches/iBEC.${device_model}ap.RELEASE.patch
     "$dir/xpwntool" iBEC.patched $ipsw_custom/Firmware/dfu/iBEC.${device_model}ap.RELEASE.dfu -t iBEC.orig
-    "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "-v amfi=0xff cs_enforcement_disable=1"
-    "$dir/xpwntool" iBEC.patched $saves/pwnediBEC.dfu -t iBEC.orig
+    if [[ $device_type == "iPod4,1" ]]; then
+        "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "-v amfi=0xff cs_enforcement_disable=1"
+        "$dir/xpwntool" iBEC.patched $saves/pwnediBEC.dfu -t iBEC.orig
+    fi
 
     log "Base manifest plist"
     file_extract_from_archive "$ipsw_base_path.ipsw" BuildManifest.plist
     $PlistBuddy -c "Set BuildIdentities:0:Manifest:RestoreDeviceTree:Info:Path Downgrade/RestoreDeviceTree" BuildManifest.plist
     $PlistBuddy -c "Set BuildIdentities:0:Manifest:RestoreKernelCache:Info:Path Downgrade/RestoreKernelCache" BuildManifest.plist
     $PlistBuddy -c "Set BuildIdentities:0:Manifest:RestoreLogo:Info:Path Downgrade/RestoreLogo" BuildManifest.plist
+    $PlistBuddy -c "Set ProductBuildVersion $device_target_build" BuildManifest.plist
+    $PlistBuddy -c "Set ProductVersion $device_target_vers" BuildManifest.plist
     cp BuildManifest.plist $ipsw_custom/
 
     local ramdisk_name=$(echo $device_fw_key_base | $jq -j '.keys[] | select(.image == "RestoreRamdisk") | .filename')
-    log "Restore Ramdisk: $ramdisk_name"
-    mv RestoreRamdisk.dec ramdisk.dec
-    "$dir/hfsplus" ramdisk.dec grow 18000000
+    if [[ $device_type == "iPad1,1" ]]; then
+        "$dir/xpwntool" $ramdisk6 ramdisk.dec -iv 8775b711d2e09e332f8ebfbebe63cce7 -k d406dc4343eedf9d6567e8303ba39a21f81f99bf701840c888963af58a84fb8f
+    else # iPod4,1
+        log "Restore Ramdisk: $ramdisk_name"
+        mv RestoreRamdisk.dec ramdisk.dec
+    fi
+    "$dir/hfsplus" ramdisk.dec grow 13000000
 
     log "Patch ASR"
     ipsw_patch_file ramdisk.dec usr/sbin asr $patches/asr.${device_model}.patch
 
     log "Modify options.plist"
-    "$dir/hfsplus" ramdisk.dec rm usr/local/share/restore/options.${device_model}.plist
+    [[ $device_type != "iPad1,1" ]] && "$dir/hfsplus" ramdisk.dec rm usr/local/share/restore/options.${device_model}.plist
     "$dir/hfsplus" ramdisk.dec add $patches/options.plist usr/local/share/restore/options.${device_model}.plist
 
     if [[ $device_type == "iPad1,1" ]]; then # NyanSatan rc.boot and exploit
+        "$dir/hfsplus" ramdisk.dec rm private/etc/rc.boot
         "$dir/hfsplus" ramdisk.dec add $sundance/rc_boot/rc.boot private/etc/rc.boot
         "$dir/hfsplus" ramdisk.dec chmod 755 private/etc/rc.boot
         "$dir/hfsplus" ramdisk.dec chown 0:0 private/etc/rc.boot
@@ -4595,14 +4628,18 @@ ipsw_prepare_touch4ios7() {
     file_extract_from_archive "$ipsw_path.ipsw" BuildManifest.plist
     local rootfs_target_name=$($PlistBuddy -c "Print BuildIdentities:0:Manifest:OS:Info:Path" BuildManifest.plist | tr -d '"')
     local rootfs_target_key
-    local rootfs_base_name="038-4291-006.dmg" # iPad1,1 5.1.1
-    local rootfs_base_key="f7bb9fd8aa3102484ab9c847dacfd3d73f1f430acb49ed7a422226f2410acee17664c91b" # iPad1,1 5.1.1
+    local rootfs_base_name
+    local rootfs_base_key
     local kc_iv
     local kc_key
     local dt_iv
     local dt_key
     case $device_type_special in
-        iPad2,1 ) rootfs_target_key="2ce48d3e6cbd6fd68c775f2f0261e205f27c78280035bb6bffadccfbec44f4d890bd34b9";;
+        iPad2,1 )
+            rootfs_target_key="2ce48d3e6cbd6fd68c775f2f0261e205f27c78280035bb6bffadccfbec44f4d890bd34b9"
+            rootfs_base_name="038-4291-006.dmg" # iPad1,1 5.1.1
+            rootfs_base_key="f7bb9fd8aa3102484ab9c847dacfd3d73f1f430acb49ed7a422226f2410acee17664c91b" # iPad1,1 5.1.1
+        ;;
         iPhone3,3 )
             rootfs_target_key="423b3503689b7058d1398d1b5d56a7b1ccf4d79e1c3e6ba853122b4f86820a9e3bc911f6"
             kc_iv="b84212f017d5ffd962db0bbe050581dc"
@@ -4615,20 +4652,14 @@ ipsw_prepare_touch4ios7() {
 
     if [[ $device_type == "iPad1,1" ]]; then
         log "Target kernelcache"
-        local kc="../saved/iPad1,1/kernelcache.release.n90"
-        if [[ ! -s $kc ]]; then
-            log "Downloading iPhone3,1 7.1.2 kernelcache"
-            "$dir/pzb" -g $(basename $kc) -o kc "https://secure-appldnld.apple.com/iOS7.1/031-4812.20140627.cq6y8/iPhone3,1_7.1.2_11D257_Restore.ipsw"
-            local sha="b7b8771c6b54f472b1342f5cb92e3cf730ac9ef7"
-            local sha_local="$($sha1sum kc | awk '{print $1}')"
-            if [[ $sha_local != "$sha" ]]; then
-                error "SHA1sum mismatch. Expected $ibss_sha, got $ibss_sha_local. Please run the script again"
-            fi
-            mv kc $kc
-        fi
-        cp $kc $all_flash2/
+        cp $kc $ipsw_custom/kernelcache.release.k48
+        log "Restore kernelcache"
+        file_extract_from_archive "$ipsw_base_path.ipsw" kernelcache.release.k48
+        "$dir/xpwntool" $sundance/artifacts/kernelcache.k48ap.bin $ipsw_custom/Downgrade/RestoreKernelCache -t kernelcache.release.k48 -iv 140984858e5c7fe245a43596f5370a0e -k fc6733108c9bd4b2179257102f81998089437c2c58cbdb8752fd40a442bd9434
         log "Target devicetree"
         cp $ipad1ios7/artifacts/DeviceTree.k48ap.img3 $all_flash2/
+        log "Restore devicetree"
+        "$dir/img3maker" -f $sundance/artifacts/DeviceTree.k48ap.bin -o $ipsw_custom/Downgrade/RestoreDeviceTree -t dtre
 
     else # iPod4,1
         log "Target kernelcache"
@@ -4675,7 +4706,8 @@ ipsw_prepare_touch4ios7() {
         "$dir/hfsplus" rootfs_base.dec extract usr/sbin/BlueTool
         rm rootfs_base.dec
 
-        log "Target RootFS: adding wifi firmware"
+        log "Target RootFS: adding touch and wifi firmware"
+        "$dir/hfsplus" rootfs.dec add iPad.mtprops usr/share/firmware/multitouch/iPad.mtprops
         "$dir/hfsplus" rootfs.dec add duo.bin usr/share/firmware/wifi/4329c0/uno.bin
         "$dir/hfsplus" rootfs.dec add duo.txt usr/share/firmware/wifi/4329c0/uno.txt
 
@@ -4705,6 +4737,7 @@ ipsw_prepare_touch4ios7() {
         "$dir/hfsplus" rootfs.dec add dyld_shared_cache_armv7.patched $dsc
         "$dir/hfsplus" rootfs.dec chmod 755 $dsc
         "$dir/hfsplus" rootfs.dec chown 0:0 $dsc
+        rm dyld_shared_cache_armv7*
 
         local db="System/Library/Extensions/IMGSGX535GLDriver.bundle"
         log "Target RootFS: adding iphone graphics drivers"
@@ -4775,6 +4808,10 @@ ipsw_prepare_touch4ios7() {
 
 download_sundancerepo() {
     local sundance="../saved/SundanceInH2A"
+    local sr="../saved/SundanceResources.b64"
+    local sr_sha1="ebf508aff198fa80204bf3d6df0114e9b645f1c0"
+    local sr_url="https://gist.githubusercontent.com/NyanSatan/1cf6921821484a2f8f788e567b654999/raw/54c6ad7554710af454c87ec2d99f869e6e669c99/SundanceResources.b64"
+
     log "Preparing SundanceInH2A"
     if [[ -s ${sundance}_macos/Sundancer ]]; then
         mv ${sundance}_macos/ ${sundance}/
@@ -4793,25 +4830,6 @@ download_sundancerepo() {
         log "git clone: $repo"
         git clone $repo $sundance
     fi
-}
-
-ipsw_prepare_sundanceinh2a() {
-    local sundance="../saved/SundanceInH2A"
-    local ipsw_path2="${device_type_special}_${device_target_vers}_${device_target_build}_Restore"
-    local ipsw_base_path2="${device_type}_${device_base_vers}_${device_base_build}_Restore"
-    local ipsw_custom2="${device_type}_${device_target_vers}_${device_target_build}_Custom"
-    local jb
-    [[ $ipsw_jailbreak == 1 ]] && jb="-j"
-    local sr="../saved/SundanceResources.b64"
-    local sr_sha1="ebf508aff198fa80204bf3d6df0114e9b645f1c0"
-    local sr_url="https://gist.githubusercontent.com/NyanSatan/1cf6921821484a2f8f788e567b654999/raw/54c6ad7554710af454c87ec2d99f869e6e669c99/SundanceResources.b64"
-
-    if [[ -e "$ipsw_custom.ipsw" ]]; then
-        log "Found existing Custom IPSW. Skipping IPSW creation."
-        return
-    fi
-
-    download_sundancerepo
 
     if [[ -s $sr ]]; then
         if [[ $($sha1sum $sr 2>/dev/null | awk '{print $1}') != "$sr_sha1" ]]; then
@@ -4837,6 +4855,22 @@ ipsw_prepare_sundanceinh2a() {
     fi
     mv artifacts/* $sundance/artifacts/
     mv resources/* $sundance/resources/
+}
+
+ipsw_prepare_sundanceinh2a() {
+    local sundance="../saved/SundanceInH2A"
+    local ipsw_path2="${device_type_special}_${device_target_vers}_${device_target_build}_Restore"
+    local ipsw_base_path2="${device_type}_${device_base_vers}_${device_base_build}_Restore"
+    local ipsw_custom2="${device_type}_${device_target_vers}_${device_target_build}_Custom"
+    local jb
+    [[ $ipsw_jailbreak == 1 ]] && jb="-j"
+
+    if [[ -e "$ipsw_custom.ipsw" ]]; then
+        log "Found existing Custom IPSW. Skipping IPSW creation."
+        return
+    fi
+
+    download_sundancerepo
 
     log "Copying freeze.tar to Cydia.tar"
     cp $jelbrek/freeze.tar.gz .
