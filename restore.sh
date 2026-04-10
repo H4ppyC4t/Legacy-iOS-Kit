@@ -4472,14 +4472,27 @@ ipsw_prepare_ios4multipart() {
     ipsw_prepare_multipatch
 }
 
-ipsw_prepare_ios7touch4() {
+ipsw_prepare_touch4ios7() {
     local all_flash2="$ipsw_custom/$all_flash"
     local patches="../resources/patch/touch4-ios7"
     local saves="../saved/$device_type/touch4-ios7"
+    local ipad1ios7="../saved/ipad1-ios7"
+    local sundance="../saved/SundanceInH2A"
 
     if [[ -e "$ipsw_custom.ipsw" ]]; then
         log "Found existing Custom IPSW. Skipping IPSW creation."
         return
+    fi
+
+    if [[ $device_type == "iPad1,1" ]]; then
+        log "Preparing ipad-1-ios-7"
+        if [[ ! -s $ipad1ios7/run.tool ]]; then
+            local repo="https://github.com/amy-and-nicole/ipad-1-ios-7"
+            rm -rf $ipad1ios7
+            log "git clone: $repo"
+            git clone $repo $ipad1ios7
+        fi
+        download_sundancerepo
     fi
 
     log "Preparing custom IPSW..."
@@ -4531,7 +4544,8 @@ ipsw_prepare_ios7touch4() {
     "$dir/xpwntool" iBSS.patched $ipsw_custom/Firmware/dfu/iBSS.${device_model}ap.RELEASE.dfu -t iBSS.orig
 
     log "Patch iBEC"
-    $bspatch iBEC.dec iBEC.patched $patches/iBEC.${device_model}ap.RELEASE.patch
+    "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "rd=md0 -v amfi=0xff cs_enforcement_disable=1"
+    #$bspatch iBEC.dec iBEC.patched $patches/iBEC.${device_model}ap.RELEASE.patch
     "$dir/xpwntool" iBEC.patched $ipsw_custom/Firmware/dfu/iBEC.${device_model}ap.RELEASE.dfu -t iBEC.orig
     "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "-v amfi=0xff cs_enforcement_disable=1"
     "$dir/xpwntool" iBEC.patched $saves/pwnediBEC.dfu -t iBEC.orig
@@ -4546,16 +4560,21 @@ ipsw_prepare_ios7touch4() {
     local ramdisk_name=$(echo $device_fw_key_base | $jq -j '.keys[] | select(.image == "RestoreRamdisk") | .filename')
     log "Restore Ramdisk: $ramdisk_name"
     mv RestoreRamdisk.dec ramdisk.dec
-    "$dir/hfsplus" ramdisk.dec grow 13000000
+    "$dir/hfsplus" ramdisk.dec grow 18000000
 
     log "Patch ASR"
-    ipsw_patch_file ramdisk.dec usr/sbin asr $patches/asr.patch
+    ipsw_patch_file ramdisk.dec usr/sbin asr $patches/asr.${device_model}.patch
 
     log "Modify options.plist"
-    "$dir/hfsplus" ramdisk.dec rm usr/local/share/restore/options.n81.plist
-    "$dir/hfsplus" ramdisk.dec add $patches/options.n81.plist usr/local/share/restore/options.n81.plist
+    "$dir/hfsplus" ramdisk.dec rm usr/local/share/restore/options.${device_model}.plist
+    "$dir/hfsplus" ramdisk.dec add $patches/options.plist usr/local/share/restore/options.${device_model}.plist
 
-    if [[ $ipsw_jailbreak == 1 ]]; then
+    if [[ $device_type == "iPad1,1" ]]; then # NyanSatan rc.boot and exploit
+        "$dir/hfsplus" ramdisk.dec add $sundance/rc_boot/rc.boot private/etc/rc.boot
+        "$dir/hfsplus" ramdisk.dec chmod 755 private/etc/rc.boot
+        "$dir/hfsplus" ramdisk.dec chown 0:0 private/etc/rc.boot
+        "$dir/hfsplus" ramdisk.dec add $sundance/exploit/exploit-k48.dmg exploit.dmg
+    elif [[ $ipsw_jailbreak == 1 ]]; then # touch 4 only
         ipsw_prepare_rebootsh aquila2
         log "Jailbreak stuff in ramdisk"
         "$dir/hfsplus" ramdisk.dec untar $jelbrek/daibutsu/bin.tar
@@ -4576,18 +4595,14 @@ ipsw_prepare_ios7touch4() {
     file_extract_from_archive "$ipsw_path.ipsw" BuildManifest.plist
     local rootfs_target_name=$($PlistBuddy -c "Print BuildIdentities:0:Manifest:OS:Info:Path" BuildManifest.plist | tr -d '"')
     local rootfs_target_key
+    local rootfs_base_name="038-4291-006.dmg" # iPad1,1 5.1.1
+    local rootfs_base_key="f7bb9fd8aa3102484ab9c847dacfd3d73f1f430acb49ed7a422226f2410acee17664c91b" # iPad1,1 5.1.1
     local kc_iv
     local kc_key
     local dt_iv
     local dt_key
     case $device_type_special in
-        iPhone3,1 )
-            rootfs_target_key="38d0320d099b9dd34ffb3308c53d397f14955b347d6a433fe173acc2ced1ae78756b3684"
-            kc_iv="a1aee41423e11a44135233dd345433ce"
-            kc_key="9b05ef79c63c59e71f253219ffaa952f25f6810d3863aac2b49628e64f9f0869"
-            dt_iv="d2f224a2d7e04461ec12ac81f91d657a"
-            dt_key="b93c3a564dc36e184871e246fa8df725ecebafb38c042b6302b333c39e7d1787"
-        ;;
+        iPad2,1 ) rootfs_target_key="2ce48d3e6cbd6fd68c775f2f0261e205f27c78280035bb6bffadccfbec44f4d890bd34b9";;
         iPhone3,3 )
             rootfs_target_key="423b3503689b7058d1398d1b5d56a7b1ccf4d79e1c3e6ba853122b4f86820a9e3bc911f6"
             kc_iv="b84212f017d5ffd962db0bbe050581dc"
@@ -4598,21 +4613,40 @@ ipsw_prepare_ios7touch4() {
     esac
     local rootfs_target_size=$((1589*1024*1024))
 
-    log "Target kernelcache"
-    file_extract_from_archive "$ipsw_path.ipsw" kernelcache.release.$device_model_special
-    mv kernelcache.release.$device_model_special kc
-    "$dir/xpwntool" kc kc.dec -iv $kc_iv -k $kc_key
-    $bspatch kc.dec kc.patched $patches/$device_target_build/kc.$device_model_special.patch
-    "$dir/xpwntool" kc.patched kc.new -t kc -iv $kc_iv -k $kc_key
-    "$dir/xpwntool" kc.new $saves/$device_target_build/kernelcache -iv $kc_iv -k $kc_key -decrypt
-    cp kc.new $ipsw_custom/kernelcache.release.$device_model # wont be used, but needed for restore
+    if [[ $device_type == "iPad1,1" ]]; then
+        log "Target kernelcache"
+        local kc="../saved/iPad1,1/kernelcache.release.n90"
+        if [[ ! -s $kc ]]; then
+            log "Downloading iPhone3,1 7.1.2 kernelcache"
+            "$dir/pzb" -g $(basename $kc) -o kc "https://secure-appldnld.apple.com/iOS7.1/031-4812.20140627.cq6y8/iPhone3,1_7.1.2_11D257_Restore.ipsw"
+            local sha="b7b8771c6b54f472b1342f5cb92e3cf730ac9ef7"
+            local sha_local="$($sha1sum kc | awk '{print $1}')"
+            if [[ $sha_local != "$sha" ]]; then
+                error "SHA1sum mismatch. Expected $ibss_sha, got $ibss_sha_local. Please run the script again"
+            fi
+            mv kc $kc
+        fi
+        cp $kc $all_flash2/
+        log "Target devicetree"
+        cp $ipad1ios7/artifacts/DeviceTree.k48ap.img3 $all_flash2/
 
-    log "Target devicetree"
-    file_extract_from_archive "$ipsw_path.ipsw" $all_flash_special/DeviceTree.${device_model_special}ap.img3
-    mv DeviceTree.${device_model_special}ap.img3 dt
-    "$dir/xpwntool" dt dt.dec -iv $dt_iv -k $dt_key -decrypt
-    echo "0000006d: 38 31" | xxd -r - dt.dec
-    cp dt.dec $saves/$device_target_build/devicetree
+    else # iPod4,1
+        log "Target kernelcache"
+        file_extract_from_archive "$ipsw_path.ipsw" kernelcache.release.$device_model_special
+        mv kernelcache.release.$device_model_special kc
+        "$dir/xpwntool" kc kc.dec -iv $kc_iv -k $kc_key
+        $bspatch kc.dec kc.patched $patches/$device_target_build/kc.$device_model_special.patch
+        "$dir/xpwntool" kc.patched kc.new -t kc -iv $kc_iv -k $kc_key
+        "$dir/xpwntool" kc.new $saves/$device_target_build/kernelcache -iv $kc_iv -k $kc_key -decrypt
+        cp kc.new $ipsw_custom/kernelcache.release.$device_model # wont be used, but needed for restore
+
+        log "Target devicetree"
+        file_extract_from_archive "$ipsw_path.ipsw" $all_flash_special/DeviceTree.${device_model_special}ap.img3
+        mv DeviceTree.${device_model_special}ap.img3 dt
+        "$dir/xpwntool" dt dt.dec -iv $dt_iv -k $dt_key -decrypt
+        echo "0000006d: 38 31" | xxd -r - dt.dec
+        cp dt.dec $saves/$device_target_build/devicetree
+    fi
 
     log "Target RootFS: extracting dmg from ipsw"
     file_extract_from_archive "$ipsw_path.ipsw" $rootfs_target_name
@@ -4621,10 +4655,72 @@ ipsw_prepare_ios7touch4() {
     if [[ $? != 0 || ! -s rootfs.dec ]]; then
         error "Failed to extract dmg. Please run the script again"
     fi
+    rm $rootfs_target_name
     log "Target RootFS: growing $rootfs_target_size"
     "$dir/hfsplus" rootfs.dec grow $rootfs_target_size
-    log "Target RootFS: untar wifi firmware"
-    "$dir/hfsplus" rootfs.dec untar $patches/wifi.tar
+
+    if [[ $device_type == "iPad1,1" ]]; then
+        log "Base RootFS: extracting dmg from ipsw"
+        file_extract_from_archive "$ipsw_base_path.ipsw" $rootfs_base_name
+        log "Base RootFS: extracting dmg with key $rootfs_target_key"
+        "$dir/dmg" extract $rootfs_base_name rootfs_base.dec -k $rootfs_base_key
+        if [[ $? != 0 || ! -s rootfs_base.dec ]]; then
+            error "Failed to extract dmg. Please run the script again"
+        fi
+        rm $rootfs_base_name
+        log "Base RootFS: extracting files"
+        "$dir/hfsplus" rootfs_base.dec extract usr/share/firmware/multitouch/iPad.mtprops
+        "$dir/hfsplus" rootfs_base.dec extract usr/share/firmware/wifi/4329b1/duo.bin
+        "$dir/hfsplus" rootfs_base.dec extract usr/share/firmware/wifi/4329b1/duo.txt
+        "$dir/hfsplus" rootfs_base.dec extract usr/sbin/BlueTool
+        rm rootfs_base.dec
+
+        log "Target RootFS: adding wifi firmware"
+        "$dir/hfsplus" rootfs.dec add duo.bin usr/share/firmware/wifi/4329c0/uno.bin
+        "$dir/hfsplus" rootfs.dec add duo.txt usr/share/firmware/wifi/4329c0/uno.txt
+
+        log "Target RootFS: adding bluetooth firmware"
+        local bt="$sundance/resources/832639820b5d5d92a684bdc15a9725c3e29cc13c"
+        local bt2="BCM4329B1_002.002.023.0965.0971_X17_USI_090611.hcd"
+        "$dir/hfsplus" rootfs.dec mkdir private/etc/bluetool
+        "$dir/hfsplus" rootfs.dec add $bt.boot.script private/etc/bluetool/$(basename $bt).boot.script
+        "$dir/hfsplus" rootfs.dec add $bt.init.script private/etc/bluetool/$(basename $bt).init.script
+        "$dir/hfsplus" rootfs.dec add $bt.deepsleep.script private/etc/bluetool/$(basename $bt).deepsleep.script
+        dd if=BlueTool of=$bt2 bs=1 skip=121632 count=16811
+        "$dir/hfsplus" rootfs.dec add $bt2 private/etc/bluetool/$bt2
+
+        local compass="System/Library/HIDPlugins/CompassPlugIn.plugin"
+        log "Target RootFS: remove CompassPlugIn"
+        "$dir/hfsplus" rootfs.dec rm $compass/CompassPlugIn
+
+        local dsc="System/Library/Caches/com.apple.dyld/dyld_shared_cache_armv7"
+        log "Target RootFS: extracting dsc, this will take a while"
+        "$dir/hfsplus" rootfs.dec extract $dsc
+        log "Patching dsc, this will take a while"
+        xxd dyld_shared_cache_armv7 > dyld_shared_cache_armv7.hex
+        patch dyld_shared_cache_armv7.hex < $ipad1ios7/artifacts/dyld_shared_cache_armv7.patch
+        xxd -r dyld_shared_cache_armv7.hex > dyld_shared_cache_armv7.patched
+        log "Target RootFS: replacing dsc, this will take a while"
+        "$dir/hfsplus" rootfs.dec rm $dsc
+        "$dir/hfsplus" rootfs.dec add dyld_shared_cache_armv7.patched $dsc
+        "$dir/hfsplus" rootfs.dec chmod 755 $dsc
+        "$dir/hfsplus" rootfs.dec chown 0:0 $dsc
+
+        local db="System/Library/Extensions/IMGSGX535GLDriver.bundle"
+        log "Target RootFS: adding iphone graphics drivers"
+        "$dir/hfsplus" rootfs.dec mkdir $db
+        "$dir/hfsplus" rootfs.dec add $ipad1ios7/artifacts/IMGSGX535GLDriver $db/IMGSGX535GLDriver
+        "$dir/hfsplus" rootfs.dec add $ipad1ios7/artifacts/H264H2.videodecoder System/Library/VideoDecoders/H264H2.videodecoder
+        "$dir/hfsplus" rootfs.dec add $ipad1ios7/artifacts/MP4VH2.videodecoder System/Library/VideoDecoders/MP4VH2.videodecoder
+
+        gestalt="private/var/mobile/Library/Caches/com.apple.MobileGestalt.plist"
+        log "Target RootFS: adding gestalt"
+        "$dir/hfsplus" rootfs.dec add $patches/gestalt.plist $gestalt
+
+    else # iPod4,1
+        log "Target RootFS: untar wifi firmware"
+        "$dir/hfsplus" rootfs.dec untar $patches/wifi.tar
+    fi
 
     if [[ $ipsw_jailbreak == 1 ]]; then
         log "Target RootFS: untar jailbreak bootstrap"
@@ -4634,8 +4730,14 @@ ipsw_prepare_ios7touch4() {
         "$dir/hfsplus" rootfs.dec untar $jelbrek/LukeZGD.tar
         touch .cydia_no_stash
         "$dir/hfsplus" rootfs.dec add .cydia_no_stash .cydia_no_stash
+
         log "Target RootFS: untar jailbreak untether"
         "$dir/hfsplus" rootfs.dec untar $jelbrek/aquila_7.tar
+        if [[ $device_type == "iPad1,1" ]]; then
+            "$dir/hfsplus" rootfs.dec rm usr/lib/libmis.dylib
+            "$dir/hfsplus" rootfs.dec mv aquila usr/libexec/dirhelper
+        fi
+
         if [[ $ipsw_openssh == 1 ]]; then
             log "Target RootFS: untar jailbreak openssh"
             cp $jelbrek/openssh.tar.gz $jelbrek/openssl.tar.gz .
@@ -4647,10 +4749,12 @@ ipsw_prepare_ios7touch4() {
         fi
     fi
 
-    echo '<plist><dict><key>com.apple.mobile.lockdown_cache-ActivationState</key><string>FactoryActivated</string></dict></plist>' > data_ark.plist
-    log "Target RootFS: activation stuff"
-    "$dir/hfsplus" rootfs.dec add data_ark.plist /var/root/Library/Lockdown/data_ark.plist
-    "$dir/hfsplus" rootfs.dec mv Applications/Setup.app Setup.app
+    if [[ $device_type == "iPod4,1" ]]; then
+        echo '<plist><dict><key>com.apple.mobile.lockdown_cache-ActivationState</key><string>FactoryActivated</string></dict></plist>' > data_ark.plist
+        log "Target RootFS: activation stuff"
+        "$dir/hfsplus" rootfs.dec add data_ark.plist /var/root/Library/Lockdown/data_ark.plist
+        "$dir/hfsplus" rootfs.dec mv Applications/Setup.app Setup.app
+    fi
 
     log "Target RootFS: building dmg as $rootfs_name"
     "$dir/dmg" build rootfs.dec $ipsw_custom/$rootfs_name
@@ -4663,26 +4767,14 @@ ipsw_prepare_ios7touch4() {
     zip -r0 $ipsw_custom.ipsw *
     popd >/dev/null
 
-    echo "device_target_build=$device_target_build
-    ipsw_jailbreak=$ipsw_jailbreak" > $saves/$device_ecid
+    if [[ $device_type == "iPod4,1" ]]; then
+        echo "device_target_build=$device_target_build
+        ipsw_jailbreak=$ipsw_jailbreak" > $saves/$device_ecid
+    fi
 }
 
-ipsw_prepare_ios6touch3() {
+download_sundancerepo() {
     local sundance="../saved/SundanceInH2A"
-    local ipsw_path2="${device_type_special}_${device_target_vers}_${device_target_build}_Restore"
-    local ipsw_base_path2="${device_type}_${device_base_vers}_${device_base_build}_Restore"
-    local ipsw_custom2="${device_type}_${device_target_vers}_${device_target_build}_Custom"
-    local jb
-    [[ $ipsw_jailbreak == 1 ]] && jb="-j"
-    local sr="../saved/SundanceResources.b64"
-    local sr_sha1="ebf508aff198fa80204bf3d6df0114e9b645f1c0"
-    local sr_url="https://gist.githubusercontent.com/NyanSatan/1cf6921821484a2f8f788e567b654999/raw/54c6ad7554710af454c87ec2d99f869e6e669c99/SundanceResources.b64"
-
-    if [[ -e "$ipsw_custom.ipsw" ]]; then
-        log "Found existing Custom IPSW. Skipping IPSW creation."
-        return
-    fi
-
     log "Preparing SundanceInH2A"
     if [[ -s ${sundance}_macos/Sundancer ]]; then
         mv ${sundance}_macos/ ${sundance}/
@@ -4701,6 +4793,25 @@ ipsw_prepare_ios6touch3() {
         log "git clone: $repo"
         git clone $repo $sundance
     fi
+}
+
+ipsw_prepare_sundanceinh2a() {
+    local sundance="../saved/SundanceInH2A"
+    local ipsw_path2="${device_type_special}_${device_target_vers}_${device_target_build}_Restore"
+    local ipsw_base_path2="${device_type}_${device_base_vers}_${device_base_build}_Restore"
+    local ipsw_custom2="${device_type}_${device_target_vers}_${device_target_build}_Custom"
+    local jb
+    [[ $ipsw_jailbreak == 1 ]] && jb="-j"
+    local sr="../saved/SundanceResources.b64"
+    local sr_sha1="ebf508aff198fa80204bf3d6df0114e9b645f1c0"
+    local sr_url="https://gist.githubusercontent.com/NyanSatan/1cf6921821484a2f8f788e567b654999/raw/54c6ad7554710af454c87ec2d99f869e6e669c99/SundanceResources.b64"
+
+    if [[ -e "$ipsw_custom.ipsw" ]]; then
+        log "Found existing Custom IPSW. Skipping IPSW creation."
+        return
+    fi
+
+    download_sundancerepo
 
     if [[ -s $sr ]]; then
         if [[ $($sha1sum $sr 2>/dev/null | awk '{print $1}') != "$sr_sha1" ]]; then
@@ -6280,10 +6391,10 @@ ipsw_prepare() {
         ;;
 
         4 )
-            if [[ $device_type == "iPod4,1" && $device_target_vers == "7."* ]]; then
-                ipsw_prepare_ios7touch4
+            if [[ $device_type == "iPod4,1" || $device_type == "iPad1,1" ]] && [[ $device_target_vers == "7."* ]]; then
+                ipsw_prepare_touch4ios7
             elif [[ -n $device_type_special ]]; then
-                ipsw_prepare_ios6touch3
+                ipsw_prepare_sundanceinh2a
             elif [[ $device_target_tethered == 1 ]]; then
                 ipsw_prepare_tethered
             elif [[ $device_target_other == 1 || $ipsw_gasgauge_patch == 1 ]] ||
@@ -8626,7 +8737,7 @@ menu_restore() {
         case $device_type in
             iPod4,1 ) menu_items+=("7.1.2");;
             iPod3,1 ) menu_items+=("6.0" "6.1.3" "6.1.6");;
-            iPad1,1 ) menu_items+=("6.1.3");;
+            iPad1,1 ) menu_items+=("6.1.3" "7.1.2");;
         esac
         if [[ $device_canpowder == 1 && $device_proc != 4 ]]; then
             local text2="7.1.x"
@@ -8689,7 +8800,7 @@ menu_restore() {
             "IPSW Downloader" ) menu_ipsw_downloader "$1";;
             7.* )
                 case $device_type in
-                    iPod4,1 ) menu_ipsw_special "$selected" "$1";;
+                    iPod4,1 | iPad1,1 ) menu_ipsw_special "$selected" "$1";;
                     * ) menu_ipsw "$selected" "$1";;
                 esac
             ;;
@@ -9310,17 +9421,13 @@ menu_ipsw_special() {
 
     while [[ -z "$mode" && -z "$back" ]]; do
         device_target_vers="$1"
-        case $1 in
-            7.* ) # for touch 4
+        case $device_type in
+            iPad1,1 ) device_type_special="iPad2,1"; device_model_special="k93";;
+            iPod3,1 ) device_type_special="iPhone2,1"; device_model_special="n88";;
+            iPod4,1 )
                 device_type_special="iPhone3,3"
                 device_model_special="n92"
                 device_target_tethered=1
-            ;;
-            6.* ) # for touch 3 and ipad 1
-                case $device_type in
-                    iPod3,1 ) device_type_special="iPhone2,1"; device_model_special="n88";;
-                    iPad1,1 ) device_type_special="iPad2,1"; device_model_special="k93";;
-                esac
             ;;
         esac
         case $1 in
@@ -9361,7 +9468,12 @@ menu_ipsw_special() {
         fi
         echo
         case $1 in
-            7.* ) warn "This is a tethered upgrade and has many broken device features. Not recommended unless you know what you are doing.";;
+            7.* )
+                case $device_type in
+                    iPad1,1 ) print "* iOS 7 on iPad 1 is based on ipad-1-ios-7 by amy-and-nicole and pwnerblu: https://github.com/amy-and-nicole/ipad-1-ios-7";;
+                    iPod4,1 ) warn "This is a tethered upgrade and has many broken device features. Not recommended unless you know what you are doing.";;
+                esac
+            ;;
             6.* ) print "* iOS 6 on touch 3/iPad 1 uses SundanceInH2A by NyanSatan: https://github.com/NyanSatan/SundanceInH2A";;
         esac
         menu_items=("Select Target IPSW" "Select Base IPSW" "Download Target IPSW" "Download Base IPSW")
@@ -11034,7 +11146,7 @@ menu_justboot() {
             ;;
             "(*) iOS 7.1.2" )
                 echo "7.1.2" > $recent
-                mode="device_justboot_ios7touch4"
+                mode="device_justboot_touch4ios7"
             ;;
             "Custom Bootargs" ) read -p "$(input 'Enter custom bootargs: ')" device_bootargs;;
             "Go Back" ) back=1;;
@@ -11175,7 +11287,7 @@ device_justboot() {
     device_ramdisk justboot
 }
 
-device_justboot_ios7touch4() {
+device_justboot_touch4ios7() {
     local patches="../resources/patch/touch4-ios7"
     local saves="../saved/$device_type/touch4-ios7"
     device_type_special="iPhone3,3"
@@ -11932,7 +12044,7 @@ if [[ $main_argmode == "device_justboot" && -z $device_rd_build ]]; then
     print "* Example usage: ./restore.sh --just-boot --build-id=12H321"
     error "Just Boot (--just-boot) requires specifying build ID (--build-id=<id>)"
 elif [[ $main_argmode == "device_justboot" && $device_type == "iPod4,1" && $device_rd_build == "11D257" ]]; then
-    main_argmode="device_justboot_ios7touch4"
+    main_argmode="device_justboot_touch4ios7"
 fi
 
 trap "clean" EXIT
