@@ -4009,6 +4009,10 @@ ipsw_prepare_32bit() {
             6.*  ) JBFiles=("aquila_6.tar");;
             5.*  ) JBFiles=("aquila_5.tar");;
             4.3* ) JBFiles=("aquila_4.tar");;
+            4.2.[8761] )
+                ExtraArgs+=" -punchd"
+                JBFiles=("greenpois0n/${device_type}_${device_target_build}.tar")
+            ;;
         esac
 
         # temporary measure for a6 ios 6
@@ -4027,17 +4031,10 @@ ipsw_prepare_32bit() {
             JBFiles[0]=$jelbrek/${JBFiles[0]}
         fi
         case $device_target_vers in
-            [98]* ) JBFiles+=("$jelbrek/fstab8.tar");;
-            7* ) JBFiles+=("$jelbrek/fstab7.tar");;
-            4* ) JBFiles+=("$jelbrek/fstab_old.tar");;
-            * )  JBFiles+=("$jelbrek/fstab_rw.tar");;
-        esac
-        case $device_target_vers in
-            4.2.9 | 4.2.10 ) JBFiles[0]=;;
-            4.2.[8761] )
-                ExtraArgs+=" -punchd"
-                JBFiles[0]=$jelbrek/greenpois0n/${device_type}_${device_target_build}.tar
-            ;;
+            [98].* ) JBFiles+=("$jelbrek/fstab8.tar");;
+            7.*    ) JBFiles+=("$jelbrek/fstab7.tar");;
+            4.*    ) JBFiles+=("$jelbrek/fstab_old.tar");;
+            *      ) JBFiles+=("$jelbrek/fstab_rw.tar");;
         esac
         JBFiles+=("freeze.tar")
         if [[ $device_target_vers == "9"* ]]; then
