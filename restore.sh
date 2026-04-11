@@ -4492,8 +4492,8 @@ ipsw_prepare_specialios7() {
         return
     fi
 
-    log "Preparing files"
     if [[ $device_type == "iPad1,1" ]]; then
+        log "Preparing files"
         mkdir -p $ipad1ios7
         if [[ ! -s $kc ]]; then
             local sha="b7b8771c6b54f472b1342f5cb92e3cf730ac9ef7"
@@ -4630,16 +4630,19 @@ ipsw_prepare_specialios7() {
     local rootfs_target_key
     local kc_iv
     local kc_key
-    local dt_iv
-    local dt_key
     case $device_type_special in
-        iPad2,1 ) rootfs_target_key="2ce48d3e6cbd6fd68c775f2f0261e205f27c78280035bb6bffadccfbec44f4d890bd34b9";;
+        iPad2,1 )
+            # iPad2,1 7.1.2
+            rootfs_target_key="2ce48d3e6cbd6fd68c775f2f0261e205f27c78280035bb6bffadccfbec44f4d890bd34b9"
+            # iPad1,1 5.1.1
+            kc_iv="140984858e5c7fe245a43596f5370a0e"
+            kc_key="fc6733108c9bd4b2179257102f81998089437c2c58cbdb8752fd40a442bd9434"
+        ;;
         iPhone3,3 )
+            # iPhone3,3 7.1.2
             rootfs_target_key="423b3503689b7058d1398d1b5d56a7b1ccf4d79e1c3e6ba853122b4f86820a9e3bc911f6"
             kc_iv="b84212f017d5ffd962db0bbe050581dc"
             kc_key="92e5720cadf724cdf428d44119b634ab3346aef1ab4e3e20abc8ecb73f7f8642"
-            dt_iv="8662383170bb93fffe2dbdd181a620da"
-            dt_key="8473b8932e1957c1e650f15cb3b6f49f497e241ebacfaa7d0b1eca3b15fc633c"
         ;;
     esac
     local rootfs_target_size=1589
@@ -4650,7 +4653,7 @@ ipsw_prepare_specialios7() {
         cp $kc $ipsw_custom/kernelcache.release.k48
         log "Restore kernelcache"
         file_extract_from_archive "$ipsw_base_path.ipsw" kernelcache.release.k48
-        "$dir/xpwntool" $sundance/artifacts/kernelcache.k48ap.bin $ipsw_custom/Downgrade/RestoreKernelCache -t kernelcache.release.k48 -iv 140984858e5c7fe245a43596f5370a0e -k fc6733108c9bd4b2179257102f81998089437c2c58cbdb8752fd40a442bd9434
+        "$dir/xpwntool" $sundance/artifacts/kernelcache.k48ap.bin $ipsw_custom/Downgrade/RestoreKernelCache -t kernelcache.release.k48 -iv $kc_iv -k $kc_key
         log "Target devicetree"
         cp $ipad1ios7/artifacts/DeviceTree.k48ap.img3 $all_flash2/
         log "Restore devicetree"
@@ -4663,12 +4666,6 @@ ipsw_prepare_specialios7() {
         "$dir/xpwntool" kc kc.new -iv $kc_iv -k $kc_key -decrypt
         cp kc.new $saves/$device_target_build/kernelcache
         cp kc.new $ipsw_custom/kernelcache.release.$device_model # wont be used, but needed for restore
-        log "Target devicetree"
-        file_extract_from_archive "$ipsw_path.ipsw" $all_flash_special/DeviceTree.${device_model_special}ap.img3
-        mv DeviceTree.${device_model_special}ap.img3 dt
-        "$dir/xpwntool" dt dt.dec -iv $dt_iv -k $dt_key -decrypt
-        echo "0000006d: 38 31" | xxd -r - dt.dec
-        cp dt.dec $saves/$device_target_build/devicetree
     fi
 
     log "Target RootFS: extracting dmg from ipsw"
