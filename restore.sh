@@ -1188,14 +1188,9 @@ device_s5l8900xall() {
     local wtf_sha_local="$($sha1sum "$wtf_saved" 2>/dev/null | awk '{print $1}')"
     mkdir ../saved 2>/dev/null
     if [[ $wtf_sha_local != "$wtf_sha" ]]; then
-        log "Downloading WTF.s5l8900xall"
-        "$dir/pzb" -g "Firmware/dfu/WTF.s5l8900xall.RELEASE.dfu" -o WTF.s5l8900xall.RELEASE.dfu "http://appldnld.apple.com/iPhone/061-7481.20100202.4orot/iPhone1,1_3.1.3_7E18_Restore.ipsw"
+        download_with_pzb "http://appldnld.apple.com/iPhone/061-7481.20100202.4orot/iPhone1,1_3.1.3_7E18_Restore.ipsw" "Firmware/dfu/WTF.s5l8900xall.RELEASE.dfu" WTF.s5l8900xall.RELEASE.dfu $wtf_sha
         rm -f "$wtf_saved"
         mv WTF.s5l8900xall.RELEASE.dfu $wtf_saved
-    fi
-    wtf_sha_local="$($sha1sum "$wtf_saved" | awk '{print $1}')"
-    if [[ $wtf_sha_local != "$wtf_sha" ]]; then
-        error "SHA1sum mismatch. Expected $wtf_sha, got $wtf_sha_local. Please run the script again"
     fi
     rm -f "$wtf_patched"
     log "Patching WTF.s5l8900xall"
@@ -2430,13 +2425,9 @@ device_alloc8() {
     ipwndfu_init
 
     if [[ ! -s ../saved/n88ap-iBSS-4.3.5.img3 ]]; then
-        log "Downloading iOS 4.3.5 iBSS"
-        "$dir/pzb" -g "Firmware/dfu/iBSS.n88ap.RELEASE.dfu" -o n88ap-iBSS-4.3.5.img3 http://appldnld.apple.com/iPhone4/041-1965.20110721.gxUB5/iPhone2,1_4.3.5_8L1_Restore.ipsw
         local ibss_sha="eb90af5310a958e6186f32c1440002962d1f975d"
-        local ibss_sha_local="$($sha1sum "n88ap-iBSS-4.3.5.img3" | awk '{print $1}')"
-        if [[ $ibss_sha_local != "$ibss_sha" ]]; then
-            error "SHA1sum mismatch. Expected $ibss_sha, got $ibss_sha_local. Please run the script again"
-        fi
+        log "Downloading iOS 4.3.5 iBSS"
+        download_with_pzb "http://appldnld.apple.com/iPhone4/041-1965.20110721.gxUB5/iPhone2,1_4.3.5_8L1_Restore.ipsw" "Firmware/dfu/iBSS.n88ap.RELEASE.dfu" n88ap-iBSS-4.3.5.img3 $ibss_sha
         mv n88ap-iBSS-4.3.5.img3 ../saved/
     fi
     cp ../saved/n88ap-iBSS-4.3.5.img3 ../saved/$ipwndfu/
@@ -4472,7 +4463,22 @@ ipsw_prepare_ios4multipart() {
     ipsw_prepare_multipatch
 }
 
-ipsw_prepare_touch4ios7() {
+download_with_pzb() {
+    local url="$1"
+    local file="$2"
+    local file_out="$3"
+    local sha="$4"
+    log "Downloading $file from: $url"
+    "$dir/pzb" -g "$file" -o "$file_out" "$url"
+    if [[ -n $sha ]]; then
+        local sha_local="$($sha1sum "$file_out" | awk '{print $1}')"
+        if [[ $sha_local != "$sha" ]]; then
+            error "SHA1sum mismatch. Expected $sha, got $sha_local. Please run the script again"
+        fi
+    fi
+}
+
+ipsw_prepare_specialios7() {
     local all_flash2="$ipsw_custom/$all_flash"
     local patches="../resources/patch/touch4-ios7"
     local saves="../saved/$device_type/touch4-ios7"
@@ -4486,27 +4492,19 @@ ipsw_prepare_touch4ios7() {
         return
     fi
 
+    log "Preparing files"
     if [[ $device_type == "iPad1,1" ]]; then
-        log "Preparing files"
         mkdir -p $ipad1ios7
         if [[ ! -s $kc ]]; then
-            log "Downloading iPhone3,1 7.1.2 kernelcache"
-            "$dir/pzb" -g $(basename $kc) -o kc "https://secure-appldnld.apple.com/iOS7.1/031-4812.20140627.cq6y8/iPhone3,1_7.1.2_11D257_Restore.ipsw"
             local sha="b7b8771c6b54f472b1342f5cb92e3cf730ac9ef7"
-            local sha_local="$($sha1sum kc | awk '{print $1}')"
-            if [[ $sha_local != "$sha" ]]; then
-                error "SHA1sum mismatch. Expected $ibss_sha, got $ibss_sha_local. Please run the script again"
-            fi
+            log "Downloading iPhone3,1 7.1.2 kernelcache"
+            download_with_pzb "https://secure-appldnld.apple.com/iOS7.1/031-4812.20140627.cq6y8/iPhone3,1_7.1.2_11D257_Restore.ipsw" $(basename $kc) kc $sha
             mv kc $kc
         fi
         if [[ ! -s $ramdisk6 ]]; then
-            log "Downloading iPad2,1 6.1.3 ramdisk"
-            "$dir/pzb" -g $(basename $ramdisk6) -o ramdisk6 "https://secure-appldnld.apple.com/iOS6.1/091-2397.20130319.EEae9/iPad2,1_6.1.3_10B329_Restore.ipsw"
             local sha="dcb5760e02a2abc4cfec610cca8c359179c3eebc"
-            local sha_local="$($sha1sum ramdisk6 | awk '{print $1}')"
-            if [[ $sha_local != "$sha" ]]; then
-                error "SHA1sum mismatch. Expected $ibss_sha, got $ibss_sha_local. Please run the script again"
-            fi
+            log "Downloading iPad2,1 6.1.3 ramdisk"
+            download_with_pzb "https://secure-appldnld.apple.com/iOS6.1/091-2397.20130319.EEae9/iPad2,1_6.1.3_10B329_Restore.ipsw" $(basename $ramdisk6) ramdisk6 $sha
             mv ramdisk6 $ramdisk6
         fi
 
@@ -4521,7 +4519,7 @@ ipsw_prepare_touch4ios7() {
     fi
 
     log "Preparing custom IPSW..."
-    mkdir -p $ipsw_custom/Firmware/dfu $ipsw_custom/Downgrade $all_flash2 $saves/$device_target_build 2>/dev/null
+    mkdir -p $ipsw_custom/Firmware/dfu $ipsw_custom/Downgrade $all_flash2 $saves/$device_target_build
 
     local comps=("iBSS" "iBEC" "DeviceTree" "Kernelcache" "RestoreRamdisk"
         "AppleLogo" "BatteryCharging0" "BatteryCharging1" "BatteryFull" "BatteryLow0" "BatteryLow1"
@@ -4586,10 +4584,11 @@ ipsw_prepare_touch4ios7() {
     cp BuildManifest.plist $ipsw_custom/
 
     local ramdisk_name=$(echo $device_fw_key_base | $jq -j '.keys[] | select(.image == "RestoreRamdisk") | .filename')
+    log "Restore Ramdisk: $ramdisk_name"
     if [[ $device_type == "iPad1,1" ]]; then
+        # iPad2,1 6.1.3
         "$dir/xpwntool" $ramdisk6 ramdisk.dec -iv 8775b711d2e09e332f8ebfbebe63cce7 -k d406dc4343eedf9d6567e8303ba39a21f81f99bf701840c888963af58a84fb8f
     else # iPod4,1
-        log "Restore Ramdisk: $ramdisk_name"
         mv RestoreRamdisk.dec ramdisk.dec
     fi
     "$dir/hfsplus" ramdisk.dec grow 13000000
@@ -4602,6 +4601,7 @@ ipsw_prepare_touch4ios7() {
     "$dir/hfsplus" ramdisk.dec add $patches/options.plist usr/local/share/restore/options.${device_model}.plist
 
     if [[ $device_type == "iPad1,1" ]]; then # NyanSatan rc.boot and exploit
+        log "Add exploit stuff from SundanceInH2A"
         "$dir/hfsplus" ramdisk.dec rm private/etc/rc.boot
         "$dir/hfsplus" ramdisk.dec add $sundance/rc_boot/rc.boot private/etc/rc.boot
         "$dir/hfsplus" ramdisk.dec chmod 755 private/etc/rc.boot
@@ -4628,18 +4628,12 @@ ipsw_prepare_touch4ios7() {
     file_extract_from_archive "$ipsw_path.ipsw" BuildManifest.plist
     local rootfs_target_name=$($PlistBuddy -c "Print BuildIdentities:0:Manifest:OS:Info:Path" BuildManifest.plist | tr -d '"')
     local rootfs_target_key
-    local rootfs_base_name
-    local rootfs_base_key
     local kc_iv
     local kc_key
     local dt_iv
     local dt_key
     case $device_type_special in
-        iPad2,1 )
-            rootfs_target_key="2ce48d3e6cbd6fd68c775f2f0261e205f27c78280035bb6bffadccfbec44f4d890bd34b9"
-            rootfs_base_name="038-4291-006.dmg" # iPad1,1 5.1.1
-            rootfs_base_key="f7bb9fd8aa3102484ab9c847dacfd3d73f1f430acb49ed7a422226f2410acee17664c91b" # iPad1,1 5.1.1
-        ;;
+        iPad2,1 ) rootfs_target_key="2ce48d3e6cbd6fd68c775f2f0261e205f27c78280035bb6bffadccfbec44f4d890bd34b9";;
         iPhone3,3 )
             rootfs_target_key="423b3503689b7058d1398d1b5d56a7b1ccf4d79e1c3e6ba853122b4f86820a9e3bc911f6"
             kc_iv="b84212f017d5ffd962db0bbe050581dc"
@@ -4648,7 +4642,8 @@ ipsw_prepare_touch4ios7() {
             dt_key="8473b8932e1957c1e650f15cb3b6f49f497e241ebacfaa7d0b1eca3b15fc633c"
         ;;
     esac
-    local rootfs_target_size=$((1589*1024*1024))
+    local rootfs_target_size=1589
+    rootfs_target_size=$((rootfs_target_size*1024*1024))
 
     if [[ $device_type == "iPad1,1" ]]; then
         log "Target kernelcache"
@@ -4665,12 +4660,9 @@ ipsw_prepare_touch4ios7() {
         log "Target kernelcache"
         file_extract_from_archive "$ipsw_path.ipsw" kernelcache.release.$device_model_special
         mv kernelcache.release.$device_model_special kc
-        "$dir/xpwntool" kc kc.dec -iv $kc_iv -k $kc_key
-        $bspatch kc.dec kc.patched $patches/$device_target_build/kc.$device_model_special.patch
-        "$dir/xpwntool" kc.patched kc.new -t kc -iv $kc_iv -k $kc_key
-        "$dir/xpwntool" kc.new $saves/$device_target_build/kernelcache -iv $kc_iv -k $kc_key -decrypt
+        "$dir/xpwntool" kc kc.new -iv $kc_iv -k $kc_key -decrypt
+        cp kc.new $saves/$device_target_build/kernelcache
         cp kc.new $ipsw_custom/kernelcache.release.$device_model # wont be used, but needed for restore
-
         log "Target devicetree"
         file_extract_from_archive "$ipsw_path.ipsw" $all_flash_special/DeviceTree.${device_model_special}ap.img3
         mv DeviceTree.${device_model_special}ap.img3 dt
@@ -4690,37 +4682,10 @@ ipsw_prepare_touch4ios7() {
     log "Target RootFS: growing $rootfs_target_size"
     "$dir/hfsplus" rootfs.dec grow $rootfs_target_size
 
+    log "Target RootFS: untar firmwares"
+    "$dir/hfsplus" rootfs.dec untar $patches/wifi.$device_model.tar
+
     if [[ $device_type == "iPad1,1" ]]; then
-        log "Base RootFS: extracting dmg from ipsw"
-        file_extract_from_archive "$ipsw_base_path.ipsw" $rootfs_base_name
-        log "Base RootFS: extracting dmg with key $rootfs_target_key"
-        "$dir/dmg" extract $rootfs_base_name rootfs_base.dec -k $rootfs_base_key
-        if [[ $? != 0 || ! -s rootfs_base.dec ]]; then
-            error "Failed to extract dmg. Please run the script again"
-        fi
-        rm $rootfs_base_name
-        log "Base RootFS: extracting files"
-        "$dir/hfsplus" rootfs_base.dec extract usr/share/firmware/multitouch/iPad.mtprops
-        "$dir/hfsplus" rootfs_base.dec extract usr/share/firmware/wifi/4329b1/duo.bin
-        "$dir/hfsplus" rootfs_base.dec extract usr/share/firmware/wifi/4329b1/duo.txt
-        "$dir/hfsplus" rootfs_base.dec extract usr/sbin/BlueTool
-        rm rootfs_base.dec
-
-        log "Target RootFS: adding touch and wifi firmware"
-        "$dir/hfsplus" rootfs.dec add iPad.mtprops usr/share/firmware/multitouch/iPad.mtprops
-        "$dir/hfsplus" rootfs.dec add duo.bin usr/share/firmware/wifi/4329c0/uno.bin
-        "$dir/hfsplus" rootfs.dec add duo.txt usr/share/firmware/wifi/4329c0/uno.txt
-
-        log "Target RootFS: adding bluetooth firmware"
-        local bt="$sundance/resources/832639820b5d5d92a684bdc15a9725c3e29cc13c"
-        local bt2="BCM4329B1_002.002.023.0965.0971_X17_USI_090611.hcd"
-        "$dir/hfsplus" rootfs.dec mkdir private/etc/bluetool
-        "$dir/hfsplus" rootfs.dec add $bt.boot.script private/etc/bluetool/$(basename $bt).boot.script
-        "$dir/hfsplus" rootfs.dec add $bt.init.script private/etc/bluetool/$(basename $bt).init.script
-        "$dir/hfsplus" rootfs.dec add $bt.deepsleep.script private/etc/bluetool/$(basename $bt).deepsleep.script
-        dd if=BlueTool of=$bt2 bs=1 skip=121632 count=16811
-        "$dir/hfsplus" rootfs.dec add $bt2 private/etc/bluetool/$bt2
-
         local compass="System/Library/HIDPlugins/CompassPlugIn.plugin"
         log "Target RootFS: remove CompassPlugIn"
         "$dir/hfsplus" rootfs.dec rm $compass/CompassPlugIn
@@ -4749,10 +4714,6 @@ ipsw_prepare_touch4ios7() {
         gestalt="private/var/mobile/Library/Caches/com.apple.MobileGestalt.plist"
         log "Target RootFS: adding gestalt"
         "$dir/hfsplus" rootfs.dec add $patches/gestalt.plist $gestalt
-
-    else # iPod4,1
-        log "Target RootFS: untar wifi firmware"
-        "$dir/hfsplus" rootfs.dec untar $patches/wifi.tar
     fi
 
     if [[ $ipsw_jailbreak == 1 ]]; then
@@ -6426,7 +6387,7 @@ ipsw_prepare() {
 
         4 )
             if [[ $device_type == "iPod4,1" || $device_type == "iPad1,1" ]] && [[ $device_target_vers == "7."* ]]; then
-                ipsw_prepare_touch4ios7
+                ipsw_prepare_specialios7
             elif [[ -n $device_type_special ]]; then
                 ipsw_prepare_sundanceinh2a
             elif [[ $device_target_tethered == 1 ]]; then
@@ -11344,7 +11305,7 @@ device_justboot_touch4ios7() {
     $irecovery -f $saves/pwnediBEC.dfu
     device_find_mode Recovery
     log "devicetree"
-    $irecovery -f $saves/$device_target_build/devicetree
+    $irecovery -f $patches/DeviceTree.n81ap.img3
     $irecovery -c devicetree
     log "kernelcache"
     $irecovery -f $saves/$device_target_build/kernelcache
