@@ -2245,7 +2245,7 @@ device_enter_mode() {
                 fi
             elif [[ $device_type == "iPod2,1" || $device_proc == 4 ]]; then
                 tool="primepwn"
-                if [[ $platform == "macos" && $platform_arch == "arm64" && $device_type != "iPod2,1" ]]; then
+                if [[ $platform == "macos" && $device_type != "iPod2,1" ]]; then
                     tool="ipwnder_lite"
                 fi
             elif [[ $device_proc == 6 ]]; then
