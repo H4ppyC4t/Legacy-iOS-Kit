@@ -8183,7 +8183,7 @@ menu_datamanage() {
     if (( device_vers_maj < 4 )); then
         warn "Device is on lower than iOS 4. Backup and Restore options are not available."
     else
-        menu_items+=("Backup" "Restore")
+        menu_items+=("Backup" "Restore" "Encryption")
     fi
     if (( device_vers_maj >= 9 )); then
         menu_items+=("Erase All Content and Settings")
@@ -8236,6 +8236,7 @@ menu_datamanage() {
                 kill $iproxy_pid $sshfs_pid
             ;;
             "Connect to SSH" ) device_ssh;;
+            "Encryption" ) menu_backup_encryption;;
         esac
     done
 }
@@ -8268,7 +8269,38 @@ menu_backup_restore() {
         selected="${menu_items[$?]}"
         case $selected in
             "Go Back" ) back=1;;
-            * ) device_backup="$selected"; mode="device_backup_restore";;
+            * )
+                device_backup="$selected"
+                print "* The selected backup $device_backup will be restored to the device."
+                select_yesno
+                if [[ $? != 1 ]]; then
+                    device_backup=
+                    continue
+                fi
+                mode="device_backup_restore"
+            ;;
+        esac
+    done
+}
+
+menu_backup_encryption() {
+    local menu_items
+    local selected
+    local back
+
+    while [[ -z "$mode" && -z "$back" ]]; do
+        menu_print_info
+        menu_items=("Encryption On" "Encryption Off" "Change Password" "Go Back")
+        echo
+        print " > Main Menu > Data Management > Encryption"
+        input "Select an option:"
+        select_option "${menu_items[@]}"
+        selected="${menu_items[$?]}"
+        case $selected in
+            "Encryption On"   ) "$dir/idevicebackup2" -i encryption on; pause;;
+            "Encryption Off"  ) "$dir/idevicebackup2" -i encryption off; pause;;
+            "Change Password" ) "$dir/idevicebackup2" -i changepw; pause;;
+            "Go Back" ) back=1;;
         esac
     done
 }
@@ -11775,8 +11807,6 @@ device_backup_create() {
 }
 
 device_backup_restore() {
-    print "* The selected backup $device_backup will be restored to the device."
-    pause
     device_backup="../saved/backups/${device_ecid}_${device_type}/$device_backup"
     pushd "$(dirname $device_backup)"
     dir="../../$dir"
