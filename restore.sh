@@ -4478,7 +4478,7 @@ download_with_pzb() {
 ipsw_prepare_specialios7() {
     local all_flash2="$ipsw_custom/$all_flash"
     local patches="../resources/patch/touch4-ios7"
-    local saves="../saved/$device_type/touch4-ios7"
+    local saves="../saved/touch4-ios7"
     local ipad1ios7="../saved/ipad1-ios7/repo"
     local sundance="../saved/SundanceInH2A"
     local kc="../saved/ipad1-ios7/kernelcache.release.n90" # iPhone3,1 7.1.2
@@ -4513,10 +4513,13 @@ ipsw_prepare_specialios7() {
             git clone $repo $ipad1ios7
         fi
         download_sundancerepo
+
+    else # iPod4,1
+        mkdir -p $saves/$device_target_build
     fi
 
     log "Preparing custom IPSW..."
-    mkdir -p $ipsw_custom/Firmware/dfu $ipsw_custom/Downgrade $all_flash2 $saves/$device_target_build
+    mkdir -p $ipsw_custom/Firmware/dfu $ipsw_custom/Downgrade $all_flash2
 
     local comps=("iBSS" "iBEC" "DeviceTree" "Kernelcache" "RestoreRamdisk"
         "AppleLogo" "BatteryCharging0" "BatteryCharging1" "BatteryFull" "BatteryLow0" "BatteryLow1"
@@ -4679,6 +4682,10 @@ ipsw_prepare_specialios7() {
     log "Target RootFS: untar firmwares"
     "$dir/hfsplus" rootfs.dec untar $patches/wifi.$device_model.tar
 
+    local gestalt="private/var/mobile/Library/Caches/com.apple.MobileGestalt.plist"
+    log "Target RootFS: adding gestalt"
+    "$dir/hfsplus" rootfs.dec add $patches/gestalt.$device_model.plist $gestalt
+
     if [[ $device_type == "iPad1,1" ]]; then
         local compass="System/Library/HIDPlugins/CompassPlugIn.plugin"
         log "Target RootFS: remove CompassPlugIn"
@@ -4704,10 +4711,6 @@ ipsw_prepare_specialios7() {
         "$dir/hfsplus" rootfs.dec add $ipad1ios7/artifacts/IMGSGX535GLDriver $db/IMGSGX535GLDriver
         "$dir/hfsplus" rootfs.dec add $ipad1ios7/artifacts/H264H2.videodecoder System/Library/VideoDecoders/H264H2.videodecoder
         "$dir/hfsplus" rootfs.dec add $ipad1ios7/artifacts/MP4VH2.videodecoder System/Library/VideoDecoders/MP4VH2.videodecoder
-
-        gestalt="private/var/mobile/Library/Caches/com.apple.MobileGestalt.plist"
-        log "Target RootFS: adding gestalt"
-        "$dir/hfsplus" rootfs.dec add $patches/gestalt.plist $gestalt
     fi
 
     if [[ $ipsw_jailbreak == 1 ]]; then
@@ -4737,15 +4740,6 @@ ipsw_prepare_specialios7() {
         fi
     fi
 
-    if [[ $device_type == "iPod4,1" ]]; then
-        echo '<plist><dict><key>com.apple.mobile.lockdown_cache-ActivationState</key><string>FactoryActivated</string></dict></plist>' > data_ark.plist
-        log "Target RootFS: activation stuff"
-        "$dir/hfsplus" rootfs.dec add data_ark.plist /var/root/Library/Lockdown/data_ark.plist
-        gestalt="private/var/mobile/Library/Caches/com.apple.MobileGestalt.plist"
-        log "Target RootFS: adding gestalt"
-        "$dir/hfsplus" rootfs.dec add $patches/gestalt-ipod.plist $gestalt
-    fi
-
     log "Target RootFS: building dmg as $rootfs_name"
     "$dir/dmg" build rootfs.dec $ipsw_custom/$rootfs_name
     if [[ $? != 0 || ! -s $ipsw_custom/$rootfs_name ]]; then
@@ -4758,8 +4752,7 @@ ipsw_prepare_specialios7() {
     popd >/dev/null
 
     if [[ $device_type == "iPod4,1" ]]; then
-        echo "device_target_build=$device_target_build
-        ipsw_jailbreak=$ipsw_jailbreak" > $saves/$device_ecid
+        echo "device_target_build=$device_target_build" > $saves/$device_ecid
     fi
 }
 
@@ -11280,8 +11273,10 @@ device_justboot() {
 
 device_justboot_touch4ios7() {
     local patches="../resources/patch/touch4-ios7"
-    local saves="../saved/$device_type/touch4-ios7"
-    device_type_special="iPhone3,3"
+    local saves="../saved/touch4-ios7"
+    if [[ -d "../saved/$device_type/touch4-ios7" ]]; then
+        mv "../saved/$device_type/touch4-ios7" $saves
+    fi
     if [[ ! -s $saves/$device_ecid ]]; then
         error "Cannot find device file for $device_ecid in saved. Need to restore to iOS 7.1.2 first."
     fi
@@ -11289,7 +11284,6 @@ device_justboot_touch4ios7() {
     source $saves/$device_ecid
     [[ -z $device_target_build ]] && device_target_build="11D257"
     log "device_target_build=$device_target_build"
-    log "ipsw_jailbreak=$ipsw_jailbreak"
 
     device_enter_mode pwnDFU
     device_rd_build=
