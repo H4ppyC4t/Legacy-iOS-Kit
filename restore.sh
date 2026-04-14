@@ -2240,7 +2240,7 @@ device_enter_mode() {
 
             tool="gaster"
             if [[ $device_type == "iPhone2,1" || $device_type == "iPod3,1" ]]; then
-                tool="ipwnder"
+                tool="ipwndfu"
                 if [[ $platform == "macos" ]]; then
                     tool="ipwnder_lite"
                 fi
@@ -2309,6 +2309,9 @@ device_enter_mode() {
             elif [[ $tool == "primepwn" ]]; then
                 log "Placing device to pwnDFU mode using primepwn"
                 $primepwn
+                tool_pwned=$?
+            elif [[ $tool == "ipwndfu" ]]; then
+                device_ipwndfu
                 tool_pwned=$?
             fi
             sleep 1
@@ -2400,8 +2403,8 @@ device_send_unpacked_ibss() {
 }
 
 ipwndfu_init() {
-    local ipwndfu_comm="b4ea37ad6e02187872c2b9c2c7d1e79fb0842fd0"
-    local ipwndfu_sha1="8b098173c7e818b05ee6c7e12f4d9e1bd7312c7f"
+    local ipwndfu_comm="15e23de30536c52a488d7d3427e290ddf0a04cb4"
+    local ipwndfu_sha1="e93159fe231787a9229df521e00ee9347f222e59"
     ipwndfu="ipwndfu_python3"
     if [[ $device_sudoloop == 1 ]]; then
         psudo="$sudo"
