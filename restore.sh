@@ -648,7 +648,7 @@ install_udev_rules() {
         print "* Your password input may not be visible, but it is still being entered."
     fi
     $sudo mkdir -p $(dirname $rule)
-    echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", MODE:="0666", TAG+="uaccess"' | sudo tee $rule
+    echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", MODE:="0666", TAG+="uaccess"' | $sudo tee $rule
     $sudo udevadm control --reload-rules
     $sudo udevadm trigger -s usb
 }
