@@ -425,12 +425,14 @@ set_tool_paths() {
         export LD_LIBRARY_PATH="$dir/lib"
 
         # live cd/usb check
-        if [[ $(id -u $USER) == 999 || $USER == "liveuser" || $(df | grep -c "/cow") != 0 ]]; then
+        if [[ $(id -u $USER) == 999 || $USER == "liveuser" || $(df | grep -c "/cow") != 0 ]] ||
+           [[ $(hostname) == *"ubuntu" && $USER == *"ubuntu" ]] ||
+           [[ $(hostname) == "mint" && $USER == "mint" ]]; then
             live_session=1
             live_session_str="Live session"
             log "Linux Live session detected."
             if [[ $(pwd) == "/home/"* ]]; then
-                df . -h
+                df . -h # just display items
                 if [[ $(lsblk -o label | grep -c "casper-rw") == 1 || $(lsblk -o label | grep -c "persistence") == 1 ]]; then
                     log "Detected Legacy iOS Kit running on persistent storage."
                     live_session_str+=" - Persistent storage"
@@ -517,6 +519,9 @@ set_tool_paths() {
                 warn "Detected existing tmp folder(s), there might be other Legacy iOS Kit instance(s) running"
                 warn "Not running usbmuxd"
             fi
+        fi
+        if [[ ! -e ../resources/new ]]; then
+            install_udev_rules
         fi
         gaster+="$dir/gaster"
 
@@ -634,10 +639,18 @@ set_tool_paths() {
     ssh2+=" -F ./ssh_config"
 }
 
-prepare_udev_rules() {
-    local owner="$1"
-    local group="$2"
-    echo "ACTION==\"add\", SUBSYSTEM==\"usb\", ATTR{idVendor}==\"05ac\", ATTR{idProduct}==\"122[27]|128[0-3]|1338|4141\", OWNER=\"$owner\", GROUP=\"$group\", MODE=\"0660\" TAG+=\"uaccess\"" > 39-libirecovery.rules
+install_udev_rules() {
+    local rule="/etc/udev/rules.d/99-libirecovery.rules"
+    [[ -s $rule ]] && return
+    log "Setting up udev rules..."
+    if [[ $live_session != 1 && $device_disable_usbmuxd == 1 ]]; then
+        print "* Enter your user password when prompted"
+        print "* Your password input may not be visible, but it is still being entered."
+    fi
+    $sudo mkdir -p $(dirname $rule)
+    echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", MODE:="0666", TAG+="uaccess"' | sudo tee $rule
+    $sudo udevadm control --reload-rules
+    $sudo udevadm trigger -s usb
 }
 
 install_depends() {
@@ -655,13 +668,11 @@ install_depends() {
             echo
         fi
         pause
-        prepare_udev_rules usbmux plugdev
     fi
 
     log "Installing dependencies..."
     if [[ $distro == "arch" ]]; then
         $sudo pacman -Sy --noconfirm --needed aria2 base-devel ca-certificates ca-certificates-mozilla curl git libimobiledevice openssh python sshfs udev unzip usbmuxd usbutils vim zenity zip zstd
-        prepare_udev_rules root storage
 
     elif [[ $distro == "debian" ]]; then
         if [[ -n $ubuntu_ver ]]; then
@@ -676,7 +687,6 @@ install_depends() {
     elif [[ $distro == "fedora" ]]; then
         $sudo dnf install -y aria2 ca-certificates git libimobiledevice libzstd openssl patch python3 sshfs systemd udev usbmuxd vim-common zenity zip
         $sudo ln -sf /etc/pki/tls/certs/ca-bundle.crt /etc/pki/tls/certs/ca-certificates.crt
-        prepare_udev_rules root usbmuxd
 
     elif [[ $distro == "fedora-atomic" ]]; then
         local packages=(patch vim-common zenity)
@@ -687,7 +697,6 @@ install_depends() {
 
     elif [[ $distro == "opensuse" ]]; then
         $sudo zypper -n install aria2 ca-certificates curl git libimobiledevice-1_0-6 libzstd1 openssl-3 patch python3 sshfs usbmuxd unzip vim zenity zip
-        prepare_udev_rules usbmux usbmux # idk if this is right
 
     elif [[ $distro == "gentoo" ]]; then
         $sudo emerge -av --noreplace app-arch/zstd app-misc/ca-certificates libimobiledevice net-fs/sshfs net-misc/aria2 net-misc/curl openssh python udev app-arch/unzip usbmuxd usbutils vim zenity app-arch/zip
@@ -696,18 +705,10 @@ install_depends() {
         $sudo xbps-install aria2 curl git patch openssh python3 unzip xxd zenity zip
     fi
 
-    echo "$platform_ver" > "../resources/firstrun"
-    if [[ $platform == "linux" && $distro != "fedora-atomic" ]]; then
-        # from linux_fix and libirecovery-rules by Cryptiiiic
-        if [[ $(command -v systemctl) ]]; then
-            $sudo systemctl enable --now systemd-udevd usbmuxd 2>/dev/null
-        fi
-        $sudo cp 39-libirecovery.rules /etc/udev/rules.d/39-libirecovery.rules
-        $sudo chown root:root /etc/udev/rules.d/39-libirecovery.rules
-        $sudo chmod 0644 /etc/udev/rules.d/39-libirecovery.rules
-        $sudo udevadm control --reload-rules
-        $sudo udevadm trigger -s usb
+    if [[ $platform == "linux" ]]; then
+        install_udev_rules
     fi
+    echo "$platform_ver" > "../resources/firstrun"
 
     log "Install script done! Please run the script again to proceed"
     log "If your iOS device is plugged in, you may need to unplug and replug your device"
@@ -7756,6 +7757,10 @@ shsh_save_onboard64() {
         print "* There are other ways for dumping onboard blobs for 64-bit devices as listed below:"
         print "* It is recommended to use SSH Ramdisk option to dump onboard blobs instead: Useful Utilities -> SSH Ramdisk"
         print "* For A8 and newer, you can also use SSHRD_Script: https://github.com/verygenericname/SSHRD_Script"
+        select_yesno
+        if [[ $? != 1 ]]; then
+            return 1
+        fi
     elif (( device_vers_maj >= 16 )); then
         print "* Make sure to have the following installed for Cryptex:"
         print "    libkrw0 1.1.2, libkrw0-tfp0 1.1.2, libx8a4-1, x8A4"
@@ -7765,7 +7770,8 @@ shsh_save_onboard64() {
     echo
     if [[ $device_mode != "Normal" ]]; then
         warn "Device must be in normal mode and jailbroken, cannot continue."
-        print "* Use the SSH Ramdisk option instead."
+        print "* Use the SSH Ramdisk option instead: Useful Utilities -> SSH Ramdisk"
+        print "* For A8 and newer, you can also use SSHRD_Script: https://github.com/verygenericname/SSHRD_Script"
         return
     fi
     log "Proceeding to dump onboard blobs on normal mode"
@@ -7824,6 +7830,7 @@ shsh_save_onboard64() {
 shsh_save_onboard() {
     if (( device_proc >= 7 )); then
         shsh_save_onboard64
+        [[ $? == 0 ]] && pause
         return
     else
         device_buttons
@@ -8630,7 +8637,6 @@ menu_shsh_onboard() {
     ipsw_path=
     if (( device_proc >= 7 )); then
         shsh_save_onboard
-        pause
         return
     fi
     while [[ -z "$mode" && -z "$back" ]]; do
