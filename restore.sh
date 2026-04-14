@@ -2400,16 +2400,16 @@ device_send_unpacked_ibss() {
 }
 
 ipwndfu_init() {
-    local ipwndfu_comm="ea998f27d737611a30e0d10fbf251d66967022f6"
-    local ipwndfu_sha1="7eb59cc50d31078fa7bbc2fddb1e76f74e43c040"
+    local ipwndfu_comm="b4ea37ad6e02187872c2b9c2c7d1e79fb0842fd0"
+    local ipwndfu_sha1="8b098173c7e818b05ee6c7e12f4d9e1bd7312c7f"
     ipwndfu="ipwndfu_python3"
     if [[ $device_sudoloop == 1 ]]; then
         psudo="$sudo"
     fi
     if [[ $platform == "macos" ]] && (( mac_majver <= 11 )); then
         ipwndfu="ipwndfu"
-        ipwndfu_comm="2bc68605dd0dd31ab27fa720452e4ccd4e638d0d"
-        ipwndfu_sha1="88d8a39c3250d0603086c5ce6911c3df1b43e9cd"
+        ipwndfu_comm="6dc7c9c7922baa1811c1c35787f32ef1238a6ba1"
+        ipwndfu_sha1="832f603acb25d274ae4f5007862a77941717e384"
     fi
     if [[ ! -s ../saved/$ipwndfu/ipwndfu || $(cat ../saved/$ipwndfu/sha1check) != "$ipwndfu_sha1" ]]; then
         rm -rf ../saved/$ipwndfu
@@ -4598,7 +4598,7 @@ ipsw_prepare_specialios7() {
     ipsw_patch_file ramdisk.dec usr/sbin asr $patches/asr.${device_model}.patch
 
     log "Modify options.plist"
-    [[ $device_type != "iPad1,1" ]] && "$dir/hfsplus" ramdisk.dec rm usr/local/share/restore/options.${device_model}.plist
+    [[ $device_type == "iPod4,1" ]] && "$dir/hfsplus" ramdisk.dec rm usr/local/share/restore/options.${device_model}.plist
     "$dir/hfsplus" ramdisk.dec add $patches/options.plist usr/local/share/restore/options.${device_model}.plist
 
     if [[ $device_type == "iPad1,1" ]]; then # NyanSatan rc.boot and exploit
