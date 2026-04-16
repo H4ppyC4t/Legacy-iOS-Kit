@@ -2239,12 +2239,7 @@ device_enter_mode() {
             device_enter_mode DFU
 
             tool="gaster"
-            if [[ $device_type == "iPhone2,1" || $device_type == "iPod3,1" ]]; then
-                tool="ipwndfu"
-                if [[ $platform == "macos" ]]; then
-                    tool="ipwnder_lite"
-                fi
-            elif [[ $device_type == "iPod2,1" || $device_proc == 4 ]]; then
+            if [[ $device_proc == 4 ]]; then
                 tool="primepwn"
                 if [[ $platform == "macos" && $device_type != "iPod2,1" ]]; then
                     tool="ipwnder_lite"
@@ -2309,9 +2304,6 @@ device_enter_mode() {
             elif [[ $tool == "primepwn" ]]; then
                 log "Placing device to pwnDFU mode using primepwn"
                 $primepwn
-                tool_pwned=$?
-            elif [[ $tool == "ipwndfu" ]]; then
-                device_ipwndfu
                 tool_pwned=$?
             fi
             sleep 1
@@ -2452,22 +2444,6 @@ device_alloc8() {
         print "* You may also need to force restart the device and re-enter DFU mode before retrying."
         print "* To retry, just go back to: Useful Utilities -> Install alloc8 Exploit"
     fi
-}
-
-device_ipwndfu() {
-    local tool_pwned
-    ipwndfu_init
-
-    pushd ../saved/$ipwndfu/ >/dev/null
-    log "Placing device to pwnDFU mode using ipwndfu"
-    $psudo ./ipwndfu -p
-    tool_pwned=$?
-    if [[ $device_sudoloop == 1 ]]; then
-        $sudo rm -rf __pycache__/ *.pyc libusbfinder/*.pyc usb/*.pyc usb/backend/*.pyc
-    fi
-    popd >/dev/null
-
-    return $tool_pwned
 }
 
 file_download() {
