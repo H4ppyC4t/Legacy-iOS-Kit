@@ -2395,16 +2395,16 @@ device_send_unpacked_ibss() {
 }
 
 ipwndfu_init() {
-    local ipwndfu_comm="15e23de30536c52a488d7d3427e290ddf0a04cb4"
-    local ipwndfu_sha1="e93159fe231787a9229df521e00ee9347f222e59"
+    local ipwndfu_comm="6f5df8d84eaca33c2373118c68a25c72a797454f"
+    local ipwndfu_sha1="04cc31dd1ed79705a51e8aba7e1e805fbf6fe1f4"
     ipwndfu="ipwndfu_python3"
     if [[ $device_sudoloop == 1 ]]; then
         psudo="$sudo"
     fi
     if [[ $platform == "macos" ]] && (( mac_majver <= 11 )); then
         ipwndfu="ipwndfu"
-        ipwndfu_comm="6dc7c9c7922baa1811c1c35787f32ef1238a6ba1"
-        ipwndfu_sha1="832f603acb25d274ae4f5007862a77941717e384"
+        ipwndfu_comm="1536e97dfbe22115693c3609d62014be62f974b6"
+        ipwndfu_sha1="8202c12ad4e302ef1eda305d6479cfb541c8179c"
     fi
     if [[ ! -s ../saved/$ipwndfu/ipwndfu || $(cat ../saved/$ipwndfu/sha1check) != "$ipwndfu_sha1" ]]; then
         rm -rf ../saved/$ipwndfu
@@ -6984,14 +6984,14 @@ device_ramdisk() {
         patch_ibss
         log "Sending iBSS..."
         $irecovery -f pwnediBSS.dfu
-        sleep 2
+        sleep 1
         log "Sending iBEC..."
         $irecovery -f $ramdisk_path/iBEC
     elif (( device_proc < 5 )) && [[ $device_pwnrec != 1 ]]; then
         log "Sending iBSS..."
         $irecovery -f $ramdisk_path/iBSS
     fi
-    sleep 2
+    sleep 1
     if [[ $build_id != "7"* && $build_id != "8"* ]]; then
         log "Sending iBEC..."
         $irecovery -f $ramdisk_path/iBEC
@@ -6999,15 +6999,12 @@ device_ramdisk() {
             $irecovery -c "go"
         fi
     fi
-    sleep 3
     device_find_mode Recovery
     if [[ $1 != "justboot" ]]; then
         log "Sending ramdisk..."
         $irecovery -f $ramdisk_path/Ramdisk.dmg
         log "Running ramdisk"
-        $irecovery -c "getenv ramdisk-delay"
         $irecovery -c ramdisk
-        sleep 2
     fi
     log "Sending DeviceTree..."
     $irecovery -f $ramdisk_path/DeviceTree.dec
@@ -7819,14 +7816,13 @@ shsh_save_onboard() {
         log "Sending iBSS..."
         $irecovery -f pwnediBSS.dfu
     fi
-    sleep 2
+    sleep 1
     patch_ibec
     log "Sending iBEC..."
     $irecovery -f pwnediBEC.dfu
     if [[ $device_pwnrec == 1 ]]; then
         $irecovery -c "go"
     fi
-    sleep 3
     device_find_mode Recovery
     log "Dumping raw dump now"
     (echo -e "/send ../resources/payload\ngo blobs\n/exit") | $irecovery2 -s
