@@ -4557,11 +4557,14 @@ ipsw_prepare_specialios7() {
     "$dir/xpwntool" iBSS.patched $ipsw_custom/Firmware/dfu/iBSS.${device_model}ap.RELEASE.dfu -t iBSS.orig
 
     log "Patch iBEC"
-    "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "rd=md0 -v amfi=0xff cs_enforcement_disable=1"
-    "$dir/xpwntool" iBEC.patched $ipsw_custom/Firmware/dfu/iBEC.${device_model}ap.RELEASE.dfu -t iBEC.orig
-    if [[ $device_type == "iPod4,1" ]]; then
+    if [[ $device_type == "iPad1,1" ]]; then
+        $bspatch iBEC.dec iBEC.patched $patches/iBEC.k48ap.RELEASE.patch
+        "$dir/xpwntool" iBEC.patched $ipsw_custom/Firmware/dfu/iBEC.${device_model}ap.RELEASE.dfu -t iBEC.orig
+    else # iPod4,1
+        "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "rd=md0 -v amfi=0xff cs_enforcement_disable=1"
+        "$dir/xpwntool" iBEC.patched $ipsw_custom/Firmware/dfu/iBEC.${device_model}ap.RELEASE.dfu -t iBEC.orig # restore ibec
         "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "-v amfi=0xff cs_enforcement_disable=1"
-        "$dir/xpwntool" iBEC.patched $saves/pwnediBEC.dfu -t iBEC.orig
+        "$dir/xpwntool" iBEC.patched $saves/pwnediBEC.dfu -t iBEC.orig # boot ibec
     fi
 
     log "Base manifest plist"
