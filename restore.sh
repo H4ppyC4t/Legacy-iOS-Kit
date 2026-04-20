@@ -2164,6 +2164,7 @@ device_enter_mode() {
             local irec_pwned
             local tool_pwned
             local tool
+            local use_limera1n
 
             if [[ $device_skip_ibss == 1 ]]; then
                 warn "Skip iBSS flag detected, skipping pwned DFU check. Proceed with caution"
@@ -2242,8 +2243,10 @@ device_enter_mode() {
             tool="gaster"
             if [[ $device_proc == 4 ]]; then
                 tool="primepwn"
-                if [[ $platform == "macos" && $device_type != "iPod2,1" ]]; then
-                    tool="ipwnder_lite"
+                if [[ $platform == "macos" ]]; then
+                    case $device_type in
+                        iPad1,1 | iPhone3,* | iPod4,1 ) use_limera1n="--use-limera1n";;
+                    esac
                 fi
             elif [[ $device_proc == 6 ]]; then
                 tool="ipwnder"
@@ -2308,7 +2311,7 @@ device_enter_mode() {
                 $gaster reset
             elif [[ $tool == "primepwn" ]]; then
                 log "Placing device to pwnDFU mode using primepwn"
-                $primepwn
+                $primepwn $use_limera1n
                 tool_pwned=$?
             fi
             sleep 1
@@ -5491,7 +5494,7 @@ ipsw_prepare_patchcomp() {
             "$dir/pzb" -g ${path}$name.$ext -o $name.$ext "$ipsw_url"
             cp $name.$ext $saved_path/$name.$ext
         fi
-        mkdir Downgrade
+        mkdir -p Downgrade
         if [[ $1 == "RestoreKernelCache" ]]; then
             local ivkey="-iv 7238dcea75bf213eff209825a03add51 -k 0295d4ef87b9db687b44f54c8585d2b6"
             "$dir/xpwntool" $name.$ext kernelcache $ivkey
