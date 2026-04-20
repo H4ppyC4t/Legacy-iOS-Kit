@@ -101,7 +101,7 @@ clean_usbmuxd() {
         $sudo systemctl restart usbmuxd
     fi
     if [[ $(command -v systemctl) ]]; then
-        $sudo systemctl restart usbmuxd
+        $sudo systemctl restart usbmuxd 2>/dev/null
     elif [[ $(command -v rc-service) ]]; then
         $sudo rc-service usbmuxd start
     fi
@@ -389,7 +389,9 @@ set_tool_paths() {
         fi
 
         # distro check
-        if [[ $ID == "arch" || $ID_LIKE == "arch" || $ID == "artix" || $ID == "cachyos" ]]; then
+        if [[ $ID == "steamos" ]]; then
+            distro="steamos"
+        elif [[ $ID == "arch" || $ID_LIKE == "arch" || $ID == "artix" || $ID == "cachyos" ]]; then
             distro="arch"
         elif (( ubuntu_ver >= 22 )) || (( debian_ver >= 12 )) || [[ $debian_ver == "sid" ]]; then
             distro="debian"
@@ -426,8 +428,8 @@ set_tool_paths() {
 
         # live cd/usb check
         if [[ $(id -u $USER) == 999 || $USER == "liveuser" || $(df | grep -c "/cow") != 0 ]] ||
-           [[ $(hostname) == *"ubuntu" && $USER == *"ubuntu" ]] ||
-           [[ $(hostname) == "mint" && $USER == "mint" ]]; then
+           [[ $(hostname 2>/dev/null) == *"ubuntu" && $USER == *"ubuntu" ]] ||
+           [[ $(hostname 2>/dev/null) == "mint" && $USER == "mint" ]]; then
             live_session=1
             live_session_str="Live session"
             log "Linux Live session detected."
@@ -500,7 +502,7 @@ set_tool_paths() {
                     print "* Your password input may not be visible, but it is still being entered."
                 fi
                 if [[ $(command -v systemctl) ]]; then
-                    $sudo systemctl stop usbmuxd
+                    $sudo systemctl stop usbmuxd 2>/dev/null
                 elif [[ $(command -v rc-service) ]]; then
                     $sudo rc-service usbmuxd zap
                 else
@@ -4684,7 +4686,7 @@ ipsw_prepare_specialios7() {
         "$dir/hfsplus" rootfs.dec extract $dsc
         log "Patching dsc, this will take a while"
         xxd dyld_shared_cache_armv7 > dyld_shared_cache_armv7.hex
-        patch dyld_shared_cache_armv7.hex < $ipad1ios7/artifacts/dyld_shared_cache_armv7.patch
+        git apply $patches/dyld_shared_cache_armv7.patch
         xxd -r dyld_shared_cache_armv7.hex > dyld_shared_cache_armv7.patched
         log "Target RootFS: replacing dsc, this will take a while"
         "$dir/hfsplus" rootfs.dec rm $dsc
@@ -11905,7 +11907,7 @@ main() {
         fi
     fi
 
-    local checks=(curl git patch xxd)
+    local checks=(curl git xxd)
     local check_fail
     for check in "${checks[@]}"; do
         if [[ $debug_mode == 1 ]]; then
