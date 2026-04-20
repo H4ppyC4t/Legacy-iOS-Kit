@@ -4753,15 +4753,15 @@ download_sundancerepo() {
     local sr_url="https://gist.githubusercontent.com/NyanSatan/1cf6921821484a2f8f788e567b654999/raw/54c6ad7554710af454c87ec2d99f869e6e669c99/SundanceResources.b64"
 
     log "Preparing SundanceInH2A"
-    if [[ -s ${sundance}_macos/Sundancer ]]; then
-        mv ${sundance}_macos/ ${sundance}/
-    fi
-    if [[ -d ${sundance}_linux ]]; then
-        rm -rf ${sundance}_linux/
-    fi
+
+    # take care of older sundance folders/repos
+    [[ -d ${sundance}_macos ]] && mv ${sundance}_macos/ ${sundance}/
+    [[ -d ${sundance}_linux ]] && rm -rf ${sundance}_linux/
+
     if [[ -s $sundance/Sundancer ]]; then
         pushd $sundance >/dev/null
         git reset --hard
+        git checkout reliability-and-debug # change to main later
         git pull
         popd >/dev/null
     else
@@ -4769,6 +4769,10 @@ download_sundancerepo() {
         rm -rf $sundance
         log "git clone: $repo"
         git clone $repo $sundance
+        pushd $sundance >/dev/null
+        git checkout reliability-and-debug
+        git pull
+        popd >/dev/null
     fi
 
     if [[ -s $sr ]]; then
@@ -4835,11 +4839,11 @@ ipsw_prepare_sundanceinh2a() {
     rm -rf "$ipsw_custom2"
     popd >/dev/null
     # "re-patch" ibss and ibec with iboot32patcher to make this work in kdfu
-    mv "$ipsw_custom.ipsw" temp.ipsw
-    ipsw_prepare_ios4patches
-    log "Add all to custom IPSW"
-    zip -r0 temp.ipsw Firmware/dfu/*
-    mv temp.ipsw "$ipsw_custom.ipsw"
+    # mv "$ipsw_custom.ipsw" temp.ipsw
+    # ipsw_prepare_ios4patches
+    # log "Add all to custom IPSW"
+    # zip -r0 temp.ipsw Firmware/dfu/*
+    # mv temp.ipsw "$ipsw_custom.ipsw"
 }
 
 ipsw_prepare_multipatch() {
