@@ -693,7 +693,7 @@ install_depends() {
         $sudo ln -sf /etc/pki/tls/certs/ca-bundle.crt /etc/pki/tls/certs/ca-certificates.crt
 
     elif [[ $distro == "fedora-atomic" ]]; then
-        local packages=(patch vim-common zenity)
+        local packages=(patch sshfs vim-common zenity)
         for package in "${packages[@]}"; do
             rpm-ostree install $package
         done

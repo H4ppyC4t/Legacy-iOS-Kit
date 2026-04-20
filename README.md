@@ -128,9 +128,9 @@
 - **macOS** 10.11 and newer
     - macOS 12.6 and newer recommended for Apple Silicon Macs
 - [**Ubuntu**](https://ubuntu.com/) 22.04 and newer, and Ubuntu-based distros like [Linux Mint](https://www.linuxmint.com/)
-- [**Fedora**](https://getfedora.org/) 40 and newer, Fedora Atomic (Silverblue, Kinoite, etc.) also supported
+- [**Fedora**](https://getfedora.org/) 40 and newer, [Atomic Desktop](https://fedoraproject.org/atomic-desktops/) (Silverblue, Kinoite, [Bazzite](https://bazzite.gg/), etc.) also supported
 - [**Debian**](https://www.debian.org/) 12 Bookworm and newer, Sid, and Debian-based distros
-- [**Arch Linux**](https://www.archlinux.org/) and Arch-based distros like [CachyOS](https://cachyos.org) and SteamOS
+- [**Arch Linux**](https://www.archlinux.org/) and Arch-based distros like [CachyOS](https://cachyos.org) and [SteamOS](https://store.steampowered.com/steamos/)
 - Less tested distros: [**openSUSE Tumbleweed**](https://get.opensuse.org/tumbleweed/), [**Gentoo**](https://www.gentoo.org/), [**Void Linux**](https://voidlinux.org/)
 
 ## Tools and other stuff used
