@@ -5,6 +5,7 @@ device_rd_build="" # You can change the version of SSH Ramdisk and Pwned iBSS/iB
 device_bootargs_default="pio-error=0 debug=0x2014e serial=3"
 device_disable_sudoloop=1
 jelbrek="../resources/jailbreak"
+sundance="../saved/SundanceInH2A"
 ssh_port=6414
 
 bash_test=$(echo -n 0)
@@ -3202,7 +3203,7 @@ ipsw_prepare_logos_convert() {
             esac
         fi
         "$dir/ibootim" "$ipsw_customlogo" logo.raw
-        "$dir/img3maker" -t $fourcc -f logo.raw -o logo.img3
+        "$dir/img3maker" -f logo.raw -o logo.img3 -t $fourcc
         if [[ ! -s logo.img3 ]]; then
             error "Converting custom logo failed. Check your image"
         fi
@@ -3213,7 +3214,7 @@ ipsw_prepare_logos_convert() {
         log "Converting custom recovery"
         recmname=$(echo "$device_fw_key" | $jq -j '.keys[] | select(.image == "RecoveryMode") | .filename')
         "$dir/ibootim" "$ipsw_customlogo" recovery.raw
-        "$dir/img3maker" -t recm -f recovery.raw -o recovery.img3
+        "$dir/img3maker" -f recovery.raw -o recovery.img3 -t recm
         if [[ ! -s recovery.img3 ]]; then
             error "Converting custom recovery failed. Check your image"
         fi
@@ -4470,7 +4471,6 @@ ipsw_prepare_specialios7() {
     local patches="../resources/patch/touch4-ios7"
     local saves="../saved/touch4-ios7"
     local ipad1ios7="../saved/ipad1-ios7/repo"
-    local sundance="../saved/SundanceInH2A"
     local kc="../saved/ipad1-ios7/kernelcache.release.n90" # iPhone3,1 7.1.2
     local ramdisk6="../saved/ipad1-ios7/048-2516-005.dmg" # iPad2,1 6.1.3
 
@@ -4747,7 +4747,6 @@ ipsw_prepare_specialios7() {
 }
 
 download_sundancerepo() {
-    local sundance="../saved/SundanceInH2A"
     local sr="../saved/SundanceResources.b64"
     local sr_sha1="ebf508aff198fa80204bf3d6df0114e9b645f1c0"
     local sr_url="https://gist.githubusercontent.com/NyanSatan/1cf6921821484a2f8f788e567b654999/raw/54c6ad7554710af454c87ec2d99f869e6e669c99/SundanceResources.b64"
@@ -4802,7 +4801,6 @@ download_sundancerepo() {
 }
 
 ipsw_prepare_sundanceinh2a() {
-    local sundance="../saved/SundanceInH2A"
     local ipsw_path2="${device_type_special}_${device_target_vers}_${device_target_build}_Restore"
     local ipsw_base_path2="${device_type}_${device_base_vers}_${device_base_build}_Restore"
     local ipsw_custom2="${device_type}_${device_target_vers}_${device_target_build}_Custom"
@@ -4833,17 +4831,27 @@ ipsw_prepare_sundanceinh2a() {
         error "Custom IPSW creation seems to have failed. Please run the script again" \
               "* If you do not have Python 3 installed, install it since SundanceInH2A requires it."
     fi
-    pushd "$ipsw_custom2"
+    pushd "$ipsw_custom2" >/dev/null
     zip -r0 ../../$ipsw_custom.ipsw *
     popd >/dev/null
     rm -rf "$ipsw_custom2"
     popd >/dev/null
-    # "re-patch" ibss and ibec with iboot32patcher to make this work in kdfu
-    # mv "$ipsw_custom.ipsw" temp.ipsw
-    # ipsw_prepare_ios4patches
-    # log "Add all to custom IPSW"
-    # zip -r0 temp.ipsw Firmware/dfu/*
-    # mv temp.ipsw "$ipsw_custom.ipsw"
+
+    # ibec ticket patch
+    log "Starting iBEC ticket patch"
+    mv "$ipsw_custom.ipsw" temp.ipsw
+    device_fw_key_check temp $device_base_build
+    mkdir -p Firmware/dfu
+    local iv=$(echo $device_fw_key_temp | $jq -j '.keys[] | select(.image == "iBEC") | .iv')
+    local key=$(echo $device_fw_key_temp | $jq -j '.keys[] | select(.image == "iBEC") | .key')
+    local name="iBEC.${device_model}ap.RELEASE.dfu"
+    file_extract_from_archive temp.ipsw Firmware/dfu/$name
+    "$dir/xpwntool" $name ibec -iv $iv -k $key
+    "$dir/iBoot32Patcher" ibec ibec.patched --ticket
+    "$dir/img3maker" -f ibec.patched -o Firmware/dfu/$name -t ibec
+    log "Add all to custom IPSW"
+    zip -r0 temp.ipsw Firmware/dfu/*
+    mv temp.ipsw "$ipsw_custom.ipsw"
 }
 
 ipsw_prepare_multipatch() {
