@@ -1650,8 +1650,8 @@ device_get_info() {
             device_latest_build="21H450"
         ;;
         iPad7,1[12] | iPhone11,* )
-            device_latest_vers="18.7.7"
-            device_latest_build="22H340"
+            device_latest_vers="18.7.8"
+            device_latest_build="22H352"
         ;;
     esac
     # if latest vers is not set, copy use vers to latest
@@ -2061,19 +2061,16 @@ device_enter_mode() {
             fi
 
             echo "chmod +x /tmp/kloader*" > kloaders
+            opt="kloader"
             if (( device_vers_maj <= 5 )); then
                 opt="kloader_axi0mX"
                 case $device_type in
                     iPad2,4 | iPad3,* ) opt="kloader5";; # needed for ipad 3 ios 5, unsure for ipad2,4
                 esac
                 log "Using $opt for $device_type iOS $device_vers_maj"
-                echo "/tmp/$opt /tmp/pwnediBSS" >> kloaders
-                sendfiles+=("../resources/kloader/$opt")
-            else
-                echo "/tmp/kloader /tmp/pwnediBSS" >> kloaders
-                sendfiles+=("../resources/kloader/kloader")
             fi
-            sendfiles+=("kloaders" "pwnediBSS")
+            echo "/tmp/$opt /tmp/pwnediBSS" >> kloaders
+            sendfiles+=("../resources/kloader/$opt" "kloaders" "pwnediBSS")
             patch_ibss
 
             device_iproxy
@@ -2106,14 +2103,9 @@ device_enter_mode() {
                 warn "Failed to connect to device via USB SSH."
                 if [[ $device_vers_maj == 10 ]]; then
                     print "* Try to re-install both OpenSSH and Dropbear, reboot, re-jailbreak, and try again."
-                    print "* Alternatively, place your device in DFU mode (see \"Troubleshooting\" wiki page for details)"
-                    print "* Troubleshooting link: https://github.com/LukeZGD/Legacy-iOS-Kit/wiki/Troubleshooting#dfu-advanced-menu-for-32-bit-devices"
-                elif (( device_vers_maj <= 5 )); then
-                    print "* Try to re-install OpenSSH, reboot, and try again."
+                    error "Failed to connect to device via SSH, cannot continue."
                 else
-                    print "* Try to re-install OpenSSH, reboot, re-jailbreak, and try again."
-                    print "* Alternatively, you may use kDFUApp from my Cydia repo (see \"Troubleshooting\" wiki page for details)"
-                    print "* Troubleshooting link: https://github.com/LukeZGD/Legacy-iOS-Kit/wiki/Troubleshooting#dfu-advanced-menu-kdfu-mode"
+                    print "* Try to re-install OpenSSH, reboot, re-jailbreak if needed, and try again."
                 fi
                 input "Press Enter/Return to try again with Wi-Fi SSH (or press Ctrl+C to cancel and try again)"
                 read -s

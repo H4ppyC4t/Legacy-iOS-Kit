@@ -171,7 +171,6 @@
 - [kloader from Odysseus](https://www.youtube.com/watch?v=fh0tB6fp0Sc)
 - [kloader from axi0mX](https://github.com/axi0mX/ios-kexec-utils/blob/master/kloader) (used on iOS 4/5 only)
 - [kloader for iOS 5](https://www.pmbonneau.com/cydia/com.pmbonneau.kloader5_1.2_iphoneos-arm.deb)
-- [kloader_hgsp from nyan_satan](https://twitter.com/nyan_satan/status/945203180522045440) (used on h3lix only)
 - [jq](https://github.com/jqlang/jq)
 - [partialZipBrowser](https://github.com/tihmstar/partialZipBrowser)
 - [zenity](https://github.com/GNOME/zenity); [macOS build](https://github.com/ncruces/zenity)
