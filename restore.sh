@@ -482,6 +482,7 @@ set_tool_paths() {
             $sudo -v
             #(while true; do $sudo -v; sleep 60; done) &
             sudoloop_pid=$!
+            a6meowing="$sudo "
             futurerestore="$sudo "
             gaster="$sudo "
             idevicerestore="$sudo LD_LIBRARY_PATH=$dir/lib "
@@ -2249,10 +2250,13 @@ device_enter_mode() {
                     tool="ipwnder32"
                     if [[ $platform_arch == "arm64" ]]; then
                         tool="ipwnder_lite"
-                        if [[ $device_type == "iPhone5,"* ]]; then
-                            tool="a6meowing"
-                        fi
                     fi
+                # elif [[ $device_type == "iPhone5,"* ]]; then
+                #     tool="a6meowing"
+                #     a6meowing+="$dir/a6meowing"
+                # else # iPad3,* (iPad 4)
+                #     tool="a6meowing"
+                #     a6meowing+="$dir/a6xmeowing"
                 fi
             elif [[ $device_proc == 7 && $platform == "macos" && $platform_arch == "arm64" ]]; then
                 tool="ipwnder2"
@@ -2272,14 +2276,8 @@ device_enter_mode() {
                 $gaster reset
             elif [[ $tool == "a6meowing" ]]; then
                 log "Placing device to pwnDFU mode using a6meowing"
-                "$dir/a6meowing"
+                $a6meowing
                 tool_pwned=$?
-                device_pwnd="$($irecovery -q | grep "PWND" | cut -c 7-)"
-                # if not pwned, try one more time, it sometimes works with this
-                if [[ $device_pwnd != "meowing" ]]; then
-                    "$dir/a6meowing"
-                    tool_pwned=$?
-                fi
             elif [[ $tool == "ipwnder32" ]]; then
                 log "Placing device to pwnDFU mode using ipwnder32"
                 "$dir/ipwnder32" -p --noibss
@@ -10408,7 +10406,7 @@ menu_usefulutilities() {
                     continue
                 fi
                 device_pair
-                "$dir/idevicesyslog"
+                "$dir/idevicesyslog" -q
             ;;
             "Go Back" ) back=1;;
         esac
@@ -10430,6 +10428,10 @@ device_update_datetime() {
 }
 
 device_pair() {
+    if [[ $device_vers_maj == 7 ]]; then
+        warn "Pressing \"Trust\" for devices on iOS 7 can have connection issues (disconnect-reconnect)."
+        print "* You may select \"Don't Trust\" on the prompt as a workaround, but that can limit some functionality."
+    fi
     log "Attempting idevicepair"
     "$dir/idevicepair" pair
     local opt=$?
@@ -10444,7 +10446,7 @@ device_pair() {
     if [[ $opt == 0 ]]; then
         device_get_paired_info
     else
-        warn "Unable to pair with device..?"
+        warn "Unable to pair with device."
     fi
 }
 
