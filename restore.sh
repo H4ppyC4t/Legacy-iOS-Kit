@@ -486,7 +486,7 @@ set_tool_paths() {
             futurerestore="$sudo "
             gaster="$sudo "
             idevicerestore="$sudo LD_LIBRARY_PATH=$dir/lib "
-            ipwnder="$sudo "
+            ipwnder="$sudo " # to remove if a6xmeowing
             irecovery="$sudo "
             irecovery2="$sudo "
             irecovery3="$sudo "
@@ -626,7 +626,7 @@ set_tool_paths() {
     ideviceinfo="$dir/ideviceinfo"
     ideviceinstaller+="$dir/ideviceinstaller"
     idevicerestore+="$dir/idevicerestore"
-    ipwnder+="$dir/ipwnder"
+    ipwnder+="$dir/ipwnder" # to remove if a6xmeowing
     irecovery+="$dir/irecovery"
     irecovery2+="$dir/irecovery2"
     irecovery3+="../$dir/irecovery"
@@ -2245,17 +2245,16 @@ device_enter_mode() {
                     esac
                 fi
             elif [[ $device_proc == 6 ]]; then
-                tool="ipwnder"
+                tool="ipwnder" # to change to a6meowing
                 if [[ $platform == "macos" ]]; then
                     tool="ipwnder32"
                     if [[ $platform_arch == "arm64" ]]; then
                         tool="ipwnder_lite"
                     fi
-                # elif [[ $device_type == "iPhone5,"* ]]; then
-                #     tool="a6meowing"
-                #     a6meowing+="$dir/a6meowing"
+                elif [[ $device_type == "iPhone5,"* ]]; then
+                    tool="a6meowing" # to remove if a6xmeowing
+                    a6meowing+="$dir/a6meowing"
                 # else # iPad3,* (iPad 4)
-                #     tool="a6meowing"
                 #     a6meowing+="$dir/a6xmeowing"
                 fi
             elif [[ $device_proc == 7 && $platform == "macos" && $platform_arch == "arm64" ]]; then
@@ -2287,8 +2286,8 @@ device_enter_mode() {
                 $ipwnder -p
                 tool_pwned=$?
             elif [[ $tool == "ipwnder2" ]]; then
-                log "Placing device to pwnDFU mode using ipwnder_lite"
-                ${ipwnder}2 -p
+                log "Placing device to pwnDFU mode using ipwnder"
+                "$dir/ipwnder2" -p
                 tool_pwned=$?
                 log "gaster reset"
                 $gaster reset
@@ -2297,7 +2296,7 @@ device_enter_mode() {
                 [[ $device_proc == 6 ]] && print "* If it gets stuck at \"[set_global_state] (2/3) e0004051\" or e000404f, the exploit failed. Just press Ctrl+C to cancel, then re-enter DFU and retry."
                 mkdir -p image3 ../saved/image3
                 cp ../saved/image3/* image3/ 2>/dev/null
-                $ipwnder -d
+                "$dir/ipwnder" -d
                 tool_pwned=$?
                 cp image3/* ../saved/image3/ 2>/dev/null
                 log "gaster reset"

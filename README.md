@@ -143,9 +143,10 @@
     - [iPad 1 exploit ramdisk is from Ralph0045](https://github.com/Ralph0045/iBoot-5-Stuff)
 - [ipwndfu](https://github.com/LukeZGD/ipwndfu) - axi0mX; LukeZGD fork
 - [iPwnder32](https://github.com/LukeZGD/iPwnder32) libusb - dora2ios; LukeZGD fork
+- [ipwnder_lite](https://github.com/LukeZGD/ipwnder_lite) - dora2ios; LukeZGD fork
 - [gaster](https://github.com/LukeZGD/gaster) - 0x7ff; LukeZGD fork
 - [primepwn](https://github.com/LukeZGD/primepwn)
-- [a6meowing](https://github.com/kok3shidoll/a6meowing) - dora/kok3shidoll
+- [a6meowing](https://github.com/kok3shidoll/a6meowing) - dora/kok3shidoll; [LukeZGD fork](https://github.com/LukeZGD/a6meowing) with changes from [retr0id](https://github.com/DavidBuchanan314/a6meowing) for Linux support
 - [daibutsuCFW](https://github.com/LukeZGD/daibutsuCFW) - dora2ios; LukeZGD fork
 - [daibutsu](https://github.com/kok3shidoll/daibutsu) - dora/kok3shidoll, Clarity
 - [libimobiledevice](https://github.com/LukeeGD/libimobiledevice) - libimobiledevice
