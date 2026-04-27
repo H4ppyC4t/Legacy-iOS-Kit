@@ -2247,10 +2247,7 @@ device_enter_mode() {
             elif [[ $device_proc == 6 ]]; then
                 tool="ipwnder" # to change if a6xmeowing
                 if [[ $platform == "macos" ]]; then
-                    tool="ipwnder32"
-                    if [[ $platform_arch == "arm64" ]]; then
-                        tool="ipwnder_lite"
-                    fi
+                    tool="ipwnder_lite"
                 elif [[ $device_type == "iPhone5,"* ]]; then
                     tool="a6meowing" # to remove if a6xmeowing
                     a6meowing+="$dir/a6meowing"
@@ -2278,9 +2275,6 @@ device_enter_mode() {
                 tool_pwned=$?
             elif [[ $tool == "ipwnder" ]]; then
                 $ipwnder -p
-                tool_pwned=$?
-            elif [[ $tool == "ipwnder32" ]]; then
-                "$dir/ipwnder32" -p --noibss
                 tool_pwned=$?
             elif [[ $tool == "ipwnder_lite" ]]; then
                 mkdir -p image3 ../saved/image3
@@ -2311,7 +2305,7 @@ device_enter_mode() {
                 if [[ $device_proc == 6 ]]; then
                     device_send_unpacked_ibss
                 fi
-            elif [[ $tool == "a6meowing" || $tool == "ipwnder32" ]]; then
+            elif [[ $tool == "a6meowing" ]]; then
                 device_pwnerror
             fi
         ;;
