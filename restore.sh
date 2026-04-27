@@ -2258,7 +2258,7 @@ device_enter_mode() {
                 #     a6meowing+="$dir/a6xmeowing"
                 fi
             elif [[ $device_proc == 7 && $platform == "macos" && $platform_arch == "arm64" ]]; then
-                tool="ipwnder2"
+                tool="ipwnder_lite"
             fi
 
             if [[ $platform == "linux" ]]; then
@@ -2276,22 +2276,16 @@ device_enter_mode() {
             elif [[ $tool == "a6meowing" ]]; then
                 $a6meowing
                 tool_pwned=$?
-            elif [[ $tool == "ipwnder32" ]]; then
-                "$dir/ipwnder32" -p --noibss
-                tool_pwned=$?
             elif [[ $tool == "ipwnder" ]]; then
                 $ipwnder -p
                 tool_pwned=$?
-            elif [[ $tool == "ipwnder2" ]]; then
-                "$dir/ipwnder2" -p
+            elif [[ $tool == "ipwnder32" ]]; then
+                "$dir/ipwnder32" -p --noibss
                 tool_pwned=$?
-                log "gaster reset"
-                $gaster reset
             elif [[ $tool == "ipwnder_lite" ]]; then
-                [[ $device_proc == 6 ]] && print "* If it gets stuck at \"[set_global_state] (2/3) e0004051\" or e000404f, the exploit failed. Just press Ctrl+C to cancel, then re-enter DFU and retry."
                 mkdir -p image3 ../saved/image3
                 cp ../saved/image3/* image3/ 2>/dev/null
-                "$dir/ipwnder" -d
+                "$dir/ipwnder" -p
                 tool_pwned=$?
                 cp image3/* ../saved/image3/ 2>/dev/null
                 log "gaster reset"
