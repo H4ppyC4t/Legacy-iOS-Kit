@@ -4735,7 +4735,7 @@ download_sundancerepo() {
     if [[ -s $sundance/Sundancer ]]; then
         pushd $sundance >/dev/null
         git reset --hard
-        git checkout reliability-and-debug # change to main later
+        git checkout master
         git pull
         popd >/dev/null
     else
@@ -4743,10 +4743,6 @@ download_sundancerepo() {
         rm -rf $sundance
         log "git clone: $repo"
         git clone $repo $sundance
-        pushd $sundance >/dev/null
-        git checkout reliability-and-debug
-        git pull
-        popd >/dev/null
     fi
 
     if [[ -s $sr ]]; then
