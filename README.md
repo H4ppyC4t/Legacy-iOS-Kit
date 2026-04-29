@@ -102,7 +102,7 @@
     - iPod touch 3 - iOS 3.1.1 to 5.1
     - Using powdersn0w requires iOS 7.1.x blobs for your device
         - No blob requirement for iPhone 4, iPad 1, iPod touch 3 (7.1.2 and 5.1.1 are signed)
-        - For iPhone 5 and 5C, both 7.0.x and 7.1.x blobs can be used
+        - For iPhone 5/5C and touch 5, both 7.0.x and 7.1.x blobs can be used
         - For iPad 4, only 7.0.x blobs can be used
 - Restoring **tethered** to any version is supported on the following devices:
     - iPhone 4 (3,2 and 3,3), 4S, 5, 5C
@@ -210,3 +210,4 @@
 - iPad 1 and iPod touch 3 unofficial upgrades:
     - [SundanceInH2A](https://github.com/NyanSatan/SundanceInH2A) - NyanSatan
     - [ipad-1-ios-7](https://github.com/amy-and-nicole/ipad-1-ios-7) - amy-and-nicole and pwnerblu, also uses stuff from SundanceInH2A
+- [kurouta dori](https://sep.lol/legacy/index.html) (turdus merula A6(X)) - dora/kok3shidoll (used for A6(X) pwning on Linux, and iOS 10 tethered restores)

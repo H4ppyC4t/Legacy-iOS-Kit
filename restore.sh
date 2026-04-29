@@ -486,7 +486,6 @@ set_tool_paths() {
             futurerestore="$sudo "
             gaster="$sudo "
             idevicerestore="$sudo LD_LIBRARY_PATH=$dir/lib "
-            ipwnder="$sudo " # to remove if a6xmeowing
             irecovery="$sudo "
             irecovery2="$sudo "
             irecovery3="$sudo "
@@ -616,6 +615,7 @@ set_tool_paths() {
         chmod +x $dir/*
     fi
 
+    a6meowing+="$dir/a6meowing"
     aria2c="$(command -v aria2c)"
     [[ -z $aria2c ]] && aria2c="$dir/aria2c"
     aria2c+=" --no-conf --download-result=hide"
@@ -626,7 +626,6 @@ set_tool_paths() {
     ideviceinfo="$dir/ideviceinfo"
     ideviceinstaller+="$dir/ideviceinstaller"
     idevicerestore+="$dir/idevicerestore"
-    ipwnder+="$dir/ipwnder" # to remove if a6xmeowing
     irecovery+="$dir/irecovery"
     irecovery2+="$dir/irecovery2"
     irecovery3+="../$dir/irecovery"
@@ -2245,14 +2244,11 @@ device_enter_mode() {
                     esac
                 fi
             elif [[ $device_proc == 6 ]]; then
-                tool="ipwnder" # to change if a6xmeowing
+                tool="litera1n"
                 if [[ $platform == "macos" ]]; then
                     tool="ipwnder_lite"
                 elif [[ $device_type == "iPhone5,"* ]]; then
-                    tool="a6meowing" # to remove if a6xmeowing
-                    a6meowing+="$dir/a6meowing"
-                # else # iPad3,* (iPad 4)
-                #     a6meowing+="$dir/a6xmeowing"
+                    tool="a6meowing"
                 fi
             elif [[ $device_proc == 7 && $platform == "macos" && $platform_arch == "arm64" ]]; then
                 tool="ipwnder_lite"
@@ -2273,8 +2269,9 @@ device_enter_mode() {
             elif [[ $tool == "a6meowing" ]]; then
                 $a6meowing
                 tool_pwned=$?
-            elif [[ $tool == "ipwnder" ]]; then
-                $ipwnder -p
+            elif [[ $tool == "litera1n" ]]; then
+                kuroutadori_init
+                $psudo ../saved/$kuroutadori/bin/litera1n -D
                 tool_pwned=$?
             elif [[ $tool == "ipwnder_lite" ]]; then
                 mkdir -p image3 ../saved/image3
@@ -2305,7 +2302,14 @@ device_enter_mode() {
                 if [[ $device_proc == 6 ]]; then
                     device_send_unpacked_ibss
                 fi
-            elif [[ $tool == "a6meowing" ]]; then
+            elif [[ $device_proc == 6 ]]; then
+                device_srtg="$($irecovery -q | grep "SRTG" | cut -c 7-)"
+                if [[ $device_srtg != "iBoot"* ]]; then
+                    log "Found device in pwned iBSS mode."
+                else
+                    device_pwnerror
+                fi
+            else
                 device_pwnerror
             fi
         ;;
@@ -2346,7 +2350,7 @@ device_send_unpacked_ibss() {
         log "Sending packed iBSS..."
         $primepwn pwnediBSS.dfu
         tool_pwned=$?
-    elif [[ $device_pwnd == "meowing" ]]; then
+    elif [[ $device_pwnd == "meowing" || $device_pwnd == "yolo" ]]; then
         log "gaster reset"
         $gaster reset
         sleep 1
@@ -2395,6 +2399,31 @@ ipwndfu_init() {
         file_extract ipwndfu.zip
         mv ipwndfu-* ../saved/$ipwndfu
         echo "$ipwndfu_sha1" > ../saved/$ipwndfu/sha1check
+    fi
+}
+
+kuroutadori_init() {
+    local comm="https://sep.lol/files/legacypreviews/v1.0.1/32fcc405b9e55c66619865663e4c0fe5bf8374d98046f7e3e704c0c04f7f63791da2465c603d5bf3e9b0ffee94fc2ee3/kurouta_dori_v1.0.1_7efbf6a4_legacymacosx.tar.gz"
+    local sha1="96d49341752b326443623277cdc4f3ea5974714a"
+    kuroutadori="kuroutadori_${platform}"
+    if [[ $device_sudoloop == 1 ]]; then
+        psudo="$sudo"
+    fi
+    if [[ $platform == "linux" ]]; then
+        kuroutadori+="-${platform_arch}"
+        comm="https://sep.lol/files/legacypreviews/v1.0.1/c796056b432ba24759a14590927c0e4b9cf07b488ccd554bdfeb952421e3d71a005c18545343e4fd3c61c120dda1eff9/kurouta_dori_v1.0.1_7efbf6a4_linux-amd64.tar.gz"
+        sha1="508221fc08d6e570300e319de0a34b08dac97ba1"
+        if [[ $platform_arch == "arm64" ]]; then
+            comm="https://sep.lol/files/legacypreviews/v1.0.1/4b81c4a850392f156374735eea4bbc2934dc13ae83848ef5d4599cd73e26352822fbda50ec23233b6fc081ae3b5d936c/kurouta_dori_v1.0.1_7efbf6a4_linux-arm64.tar.gz"
+            sha1="3cc645a242d65f7c0549d77278783cdd99206e81"
+        fi
+    fi
+    if [[ ! -s ../saved/$kuroutadori/bin/litera1n || $(cat ../saved/$kuroutadori/sha1check) != "$sha1" ]]; then
+        rm -rf ../saved/$kuroutadori
+        file_download "$comm" kuroutadori.tar.gz $sha1
+        mkdir -p ../saved/$kuroutadori
+        tar -xvf kuroutadori.tar.gz -C ../saved/$kuroutadori
+        echo "$sha1" > ../saved/$kuroutadori/sha1check
     fi
 }
 
@@ -2691,9 +2720,12 @@ ipsw_preference_set() {
     case $device_latest_vers in
         [76543]* ) ipsw_canjailbreak=1;;
     esac
-    if [[ $device_target_vers == "$device_latest_vers" && $device_deadbb == 1 ]] ||
-       [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other == 1 ]]; then
+    if [[ $device_target_vers == "$device_latest_vers" && $device_deadbb == 1 ]]; then
         ipsw_gasgauge_patch=1
+    elif [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
+            $device_proc == 6 && $target_vers_maj == 10 ]]; then
+        warn "multipatch is not supported on A6(X) tethered iOS 10, so it will be disabled."
+        ipsw_gasgauge_patch=
     fi
     if (( device_proc >= 7 )) || [[ $device_target_vers == "$device_latest_vers" && $ipsw_canjailbreak != 1 && $ipsw_gasgauge_patch != 1 ]]; then
         return
@@ -2840,7 +2872,7 @@ ipsw_preference_set() {
         ipsw_canmemory=
     elif [[ -n $device_type_special ]]; then
         ipsw_canmemory=
-    elif [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other == 1 ]]; then
+    elif [[ $device_proc == 6 && $target_vers_maj == 10 ]]; then
         ipsw_canmemory=
     elif [[ $device_target_powder == 1 || $device_target_tethered == 1 ||
           $ipsw_jailbreak == 1 || $ipsw_gasgauge_patch == 1 || $ipsw_nskip == 1 ||
@@ -6137,7 +6169,9 @@ restore_deviceprepare() {
 
         [56] )
             # 32-bit devices A5/A6
-            if [[ $device_target_tethered == 1 ]]; then
+            if [[ $target_vers_maj == 10 && $device_target_tethered == 1 ]]; then
+                return # do nothing, use kuroutadori
+            elif [[ $device_target_tethered == 1 ]]; then
                 shsh_save version $device_latest_vers
                 device_enter_mode pwnDFU
                 return
@@ -6244,6 +6278,8 @@ restore_prepare() {
                 restore_latest
             elif [[ $ipsw_jailbreak == 1 || -e "$ipsw_custom.ipsw" ]]; then
                 restore_idevicerestore
+            elif [[ $target_vers_maj == 10 ]]; then
+                restore_kuroutadori
             else
                 restore_futurerestore --use-pwndfu
             fi
@@ -6282,6 +6318,22 @@ restore_prepare() {
 
         11 ) restore_latest;;
     esac
+}
+
+restore_kuroutadori() {
+    local args=("-w" "--load-shsh" "$shsh_path")
+    kuroutadori_init
+    device_enter_mode DFU
+    if [[ $device_target_tethered == 1 ]]; then
+        args=("-o")
+    fi
+    args+=("-y" "$ipsw_path.ipsw")
+    $psudo ../saved/$kuroutadori/bin/litera1n -D
+    device_pwnd="$($irecovery -q | grep "PWND" | cut -c 7-)"
+    if [[ $device_pwnd != "yolo" ]]; then
+        device_pwnerror
+    fi
+    $psudo ../saved/$kuroutadori/bin/turdus_merula "${args[@]}"
 }
 
 # Function to get iOS version from build number using firmwares.json
@@ -6380,7 +6432,9 @@ ipsw_prepare() {
 
         [56] )
             # 32-bit devices A5/A6
-            if [[ $device_target_tethered == 1 ]]; then
+            if [[ $target_vers_maj == 10 && $device_target_tethered == 1 ]]; then
+                return # do nothing, use kuroutadori
+            elif [[ $device_target_tethered == 1 ]]; then
                 ipsw_prepare_tethered
             elif [[ $device_target_powder == 1 ]]; then
                 ipsw_prepare_powder
@@ -9751,7 +9805,8 @@ menu_ipsw_browse() {
         log "For restoring to latest iOS, select the \"Latest iOS\" option instead of \"Other\""
         pause
         return
-    elif [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other != 1 && $device_target_powder != 1 ]]; then
+    elif [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_tethered != 1 &&
+            $device_target_other != 1 && $device_target_powder != 1 ]]; then
         log "Selected IPSW ($device_target_vers) is not supported as target version."
         print "* iOS 10 versions that are not 10.3.4 are not supported for 32-bit devices."
         print "* The only exception is for restoring with 32-bit iOS 10 blobs."
@@ -11304,6 +11359,12 @@ device_justboot() {
     fi
     if [[ $main_argmode == "device_justboot" ]]; then
         cat "$device_rd_build" > "../saved/$device_type/justboot_${device_ecid}"
+    fi
+    if [[ $device_rd_build == "14"* ]]; then
+        kuroutadori_init
+        device_enter_mode DFU
+        $psudo ../saved/$kuroutadori/bin/litera1n -T
+        return
     fi
     device_ramdisk justboot
 }
