@@ -97,12 +97,13 @@
 - Restoring with **powdersn0w** is supported on the following devices and target version range:
     - iPhone 4 GSM - iOS 4.0 to 7.1.1
     - iPhone 4 CDMA - iOS 4.2.6 to 7.1.1
-    - iPhone 4S, 5, 5C, iPad 2 Rev A, iPod touch 5 - iOS 5.0 to 9.3.5
+    - iPhone 4S, 5, 5C, iPad 2 Rev A, iPad 4, iPod touch 5 - iOS 5.0 to 9.3.5
     - iPad 1 - iOS 3.2 to 5.1
     - iPod touch 3 - iOS 3.1.1 to 5.1
     - Using powdersn0w requires iOS 7.1.x blobs for your device
         - No blob requirement for iPhone 4, iPad 1, iPod touch 3 (7.1.2 and 5.1.1 are signed)
         - For iPhone 5 and 5C, both 7.0.x and 7.1.x blobs can be used
+        - For iPad 4, only 7.0.x blobs can be used
 - Restoring **tethered** to any version is supported on the following devices:
     - iPhone 4 (3,2 and 3,3), 4S, 5, 5C
     - iPad 2, 3, 4, mini 1
@@ -141,6 +142,7 @@
     - [iPhone 5C 7.0.x exploit ramdisk is from m1zole](https://github.com/m1zole/untitled_pub)
     - [Other iPhone 5/5C ramdisks are from Ralph0045's iloader repo](https://github.com/Ralph0045/iloader)
     - [iPad 1 exploit ramdisk is from Ralph0045](https://github.com/Ralph0045/iBoot-5-Stuff)
+    - [iPad 4 7.0.x exploit ramdisk is from Pingzi610](https://github.com/Pingzi610/iloader)
 - [ipwndfu](https://github.com/LukeZGD/ipwndfu) - axi0mX; LukeZGD fork
 - [iPwnder32](https://github.com/LukeZGD/iPwnder32) libusb - dora2ios; LukeZGD fork
 - [ipwnder_lite](https://github.com/LukeZGD/ipwnder_lite) - dora2ios; LukeZGD fork

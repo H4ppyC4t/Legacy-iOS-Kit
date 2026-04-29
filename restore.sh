@@ -1523,7 +1523,7 @@ device_get_info() {
     esac
 
     case $device_type in
-        iPhone3,[13] | iPhone[45],* | iPad1,1 | iPad2,4 | iPod[35],1 ) device_canpowder=1;; # powdersn0w device support
+        iPhone3,[13] | iPhone[45],* | iPad1,1 | iPad2,4 | iPad3,[456] | iPod[35],1 ) device_canpowder=1;; # powdersn0w device support
     esac
 
     device_fw_dir="../saved/firmware/$device_type"
@@ -7312,7 +7312,6 @@ device_ramdisk_setnvram() {
             iPhone3,3 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/disk.dmg";;
             iPad2,4   ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/j/k/l/m/n/o/p/q/r/s/t/disk.dmg";;
             iPhone4,1 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/j/k/l/m/n/o/p/q/r/disk.dmg";;
-            iPod5,1   ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/j/k/l/m/disk.dmg";;
             iPhone5,* )
                 local selection=("iOS 7.1.x" "iOS 7.0.x")
                 input "Select this device's base version:"
@@ -7322,6 +7321,7 @@ device_ramdisk_setnvram() {
                     * ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/j/k/l/m/n/o/p/q/r/s/t/u/v/w/disk.dmg";;
                 esac
             ;;
+            iPod5,1 | iPad3,[456] ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/j/k/l/m/disk.dmg";;
             iPad1,1 | iPod3,1 )
                 device_ramdisk_iosvers
                 if [[ $device_vers == "3"* ]]; then
@@ -9857,7 +9857,7 @@ menu_ipsw_browse() {
                     check_vers="7"
                     base_vers="7.x"
                 ;;
-                iPad3,* )
+                iPad3,[456] )
                     check_vers="7.0"
                     base_vers="7.0.x"
                 ;;
