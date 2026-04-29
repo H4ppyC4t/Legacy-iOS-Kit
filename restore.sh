@@ -8739,8 +8739,8 @@ menu_restore() {
         if [[ $device_canpowder == 1 && $device_proc != 4 ]]; then
             local text2="7.1.x"
             case $device_type in
-                iPhone5,[1234] ) text2="7.x";;
-                iPad3,[456]    ) text2="7.0.x";;
+                iPhone5,[1234] | iPod5,1 ) text2="7.x";;
+                iPad3,[456] ) text2="7.0.x";;
             esac
             menu_items+=("Other (powdersn0w $text2 blobs)")
         fi
@@ -9853,7 +9853,7 @@ menu_ipsw_browse() {
             local check_vers="7.1"
             local base_vers="7.1.x"
             case $device_type in
-                iPhone5,[1234] )
+                iPhone5,[1234] | iPod5,1 )
                     check_vers="7"
                     base_vers="7.x"
                 ;;
