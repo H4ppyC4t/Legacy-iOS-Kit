@@ -5,6 +5,7 @@
 *.ipa
 *.ipsw
 *.json
+*.log
 *.shsh
 *.shsh2
 *.txt

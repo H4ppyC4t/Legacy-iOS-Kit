@@ -2272,8 +2272,7 @@ device_enter_mode() {
                 tool_pwned=$?
             elif [[ $tool == "litera1n" ]]; then
                 kuroutadori_init
-                log "Running litera1n: $kuroutadori/litera1n -D"
-                $kuroutadori/litera1n -D
+                kuroutadori_litera1n -p
                 tool_pwned=$?
             elif [[ $tool == "ipwnder_lite" ]]; then
                 mkdir -p image3 ../saved/image3
@@ -2348,11 +2347,11 @@ device_send_unpacked_ibss() {
         device_rd_build=
         patch_ibss
     fi
-    if [[ $device_pwnd == "ipwnder" ]]; then
+    if [[ $device_pwnd == *"wnder" ]]; then
         log "Sending packed iBSS..."
         $primepwn pwnediBSS.dfu
         tool_pwned=$?
-    elif [[ $device_pwnd == "meowing" || $device_pwnd == "yolo" ]]; then
+    elif [[ $device_proc == 6 ]]; then
         log "gaster reset"
         $gaster reset
         sleep 1
@@ -2405,8 +2404,8 @@ ipwndfu_init() {
 }
 
 kuroutadori_init() {
-    local comm="https://sep.lol/files/legacypreviews/v1.0.1/32fcc405b9e55c66619865663e4c0fe5bf8374d98046f7e3e704c0c04f7f63791da2465c603d5bf3e9b0ffee94fc2ee3/kurouta_dori_v1.0.1_7efbf6a4_legacymacosx.tar.gz"
-    local sha1="96d49341752b326443623277cdc4f3ea5974714a"
+    local comm="https://sep.lol/files/legacypreviews/v1.0.2/a3ad4e6e525393239b3ac4ad58499f25a336b03b97cba6fba4f3a273c8505653548f2c7ad37fc18b1e69e0fddb5b73a3/kurouta_dori_v1.0.2_75aab959_legacymacosx.tar.gz"
+    local sha1="61d3d964d194fd9a2084045c3cd95dc3e7920015"
     kuroutadori="kuroutadori_${platform}"
     if [[ $device_sudoloop == 1 ]]; then
         psudo="$sudo"
@@ -2416,11 +2415,11 @@ kuroutadori_init() {
     fi
     if [[ $platform == "linux" ]]; then
         kuroutadori+="-${platform_arch}"
-        comm="https://sep.lol/files/legacypreviews/v1.0.1/c796056b432ba24759a14590927c0e4b9cf07b488ccd554bdfeb952421e3d71a005c18545343e4fd3c61c120dda1eff9/kurouta_dori_v1.0.1_7efbf6a4_linux-amd64.tar.gz"
-        sha1="508221fc08d6e570300e319de0a34b08dac97ba1"
+        comm="https://sep.lol/files/legacypreviews/v1.0.2/37daa814d98a38640813527be6c82ec1ee0561923b543c2290a0d519e9b2e7f7b73147a26e38d7f8a849fd70e0713125/kurouta_dori_v1.0.2_75aab959_linux-amd64.tar.gz"
+        sha1="6d801a59979c64ff73015a8bfc950518dc043525"
         if [[ $platform_arch == "arm64" ]]; then
-            comm="https://sep.lol/files/legacypreviews/v1.0.1/4b81c4a850392f156374735eea4bbc2934dc13ae83848ef5d4599cd73e26352822fbda50ec23233b6fc081ae3b5d936c/kurouta_dori_v1.0.1_7efbf6a4_linux-arm64.tar.gz"
-            sha1="3cc645a242d65f7c0549d77278783cdd99206e81"
+            comm="https://sep.lol/files/legacypreviews/v1.0.2/e04e9d27bcb8339e2e876ad92cc751b1e679b1ce91d2807b13ff1bc820d97349ee5ce5d1c58e61ec062e1a6b7bc2b726/kurouta_dori_v1.0.2_75aab959_linux-arm64.tar.gz"
+            sha1="1dea1e3e5c7ca921ea6f6380ed0261d9c36a0165"
         fi
     fi
     if [[ ! -s ../saved/$kuroutadori/bin/litera1n || $(cat ../saved/$kuroutadori/sha1check) != "$sha1" ]]; then
@@ -2431,7 +2430,20 @@ kuroutadori_init() {
         echo "$sha1" > ../saved/$kuroutadori/sha1check
     fi
     kuroutadori="$psudo ../saved/$kuroutadori/bin"
+}
+
+kuroutadori_litera1n() {
+    local tool_pwned
     print "* If pwning fails, try to rerun the script with --ra1n-timeout=1000000 (or adjust the value as needed)"
+    print "* If it gets stuck at \"checkm8 setup stage\", unplug and replug the device."
+    print "* If it gets stuck at \"Checkmate?\", press Ctrl+C to cancel, then re-enter DFU and retry."
+    for i in {1..3}; do
+        log "Running litera1n (attempt $i): $kuroutadori/litera1n $1"
+        $kuroutadori/litera1n $1
+        tool_pwned=$?
+        [[ $tool_pwned == 0 || $tool_pwned == 30 ]] && break
+    done
+    return $tool_pwned
 }
 
 device_alloc8() {
@@ -6336,8 +6348,7 @@ restore_kuroutadori() {
     args+=("-y" "$ipsw_path.ipsw")
     device_enter_mode DFU
     kuroutadori_init
-    log "Running litera1n: $kuroutadori/litera1n -D"
-    $kuroutadori/litera1n -D
+    kuroutadori_litera1n -D
     device_pwnd="$($irecovery -q | grep "PWND" | cut -c 7-)"
     if [[ $device_pwnd != "yolo" ]]; then
         device_pwnerror
@@ -11373,8 +11384,7 @@ device_justboot() {
     if [[ $device_rd_build == "14"* ]]; then
         device_enter_mode DFU
         kuroutadori_init
-        log "Running litera1n: $kuroutadori/litera1n -T"
-        $kuroutadori/litera1n -T
+        kuroutadori_litera1n -T
         return
     fi
     device_ramdisk justboot
