@@ -150,6 +150,7 @@ For 32-bit devices compatible with restores/downgrades (see README):
                               This patch also attempts to get past "invalid ticket" error
     --memory                  Enable memory option for creating IPSW
     --pwned-recovery          Assume that device is in pwned recovery mode (experimental)
+    --ra1n-timeout=<value>    Set RA1N_ABORT_TIMEOUT for litera1n A6(X) (recommended: 1000000)
     --skip-first              Skip first restore and flash part 2 IPSW only for powdersn0w 4.2.x and lower
     --skip-ibss               Assume that pwned iBSS has already been sent to the device
 
@@ -2271,7 +2272,8 @@ device_enter_mode() {
                 tool_pwned=$?
             elif [[ $tool == "litera1n" ]]; then
                 kuroutadori_init
-                $psudo ../saved/$kuroutadori/bin/litera1n -D
+                log "Running litera1n: $kuroutadori/litera1n -D"
+                $kuroutadori/litera1n -D
                 tool_pwned=$?
             elif [[ $tool == "ipwnder_lite" ]]; then
                 mkdir -p image3 ../saved/image3
@@ -2408,6 +2410,9 @@ kuroutadori_init() {
     kuroutadori="kuroutadori_${platform}"
     if [[ $device_sudoloop == 1 ]]; then
         psudo="$sudo"
+        [[ -n $device_ra1n_timeout ]] && psudo+=" RA1N_ABORT_TIMEOUT=$device_ra1n_timeout"
+    elif [[ -n $device_ra1n_timeout ]]; then
+        psudo="env RA1N_ABORT_TIMEOUT=$device_ra1n_timeout"
     fi
     if [[ $platform == "linux" ]]; then
         kuroutadori+="-${platform_arch}"
@@ -2425,6 +2430,8 @@ kuroutadori_init() {
         tar -xvf kuroutadori.tar.gz -C ../saved/$kuroutadori
         echo "$sha1" > ../saved/$kuroutadori/sha1check
     fi
+    kuroutadori="$psudo ../saved/$kuroutadori/bin"
+    print "* If pwning fails, try to rerun the script with --ra1n-timeout=1000000 (or adjust the value as needed)"
 }
 
 device_alloc8() {
@@ -2722,8 +2729,9 @@ ipsw_preference_set() {
     esac
     if [[ $device_target_vers == "$device_latest_vers" && $device_deadbb == 1 ]]; then
         ipsw_gasgauge_patch=1
-    elif [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
-            $device_proc == 6 && $target_vers_maj == 10 ]]; then
+    fi
+    if [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
+          $device_proc == 6 && $target_vers_maj == 10 ]]; then
         warn "multipatch is not supported on A6(X) tethered iOS 10, so it will be disabled."
         ipsw_gasgauge_patch=
     fi
@@ -6322,18 +6330,20 @@ restore_prepare() {
 
 restore_kuroutadori() {
     local args=("-w" "--load-shsh" "$shsh_path")
-    kuroutadori_init
-    device_enter_mode DFU
     if [[ $device_target_tethered == 1 ]]; then
         args=("-o")
     fi
     args+=("-y" "$ipsw_path.ipsw")
-    $psudo ../saved/$kuroutadori/bin/litera1n -D
+    device_enter_mode DFU
+    kuroutadori_init
+    log "Running litera1n: $kuroutadori/litera1n -D"
+    $kuroutadori/litera1n -D
     device_pwnd="$($irecovery -q | grep "PWND" | cut -c 7-)"
     if [[ $device_pwnd != "yolo" ]]; then
         device_pwnerror
     fi
-    $psudo ../saved/$kuroutadori/bin/turdus_merula "${args[@]}"
+    log "Running turdus_merula: $kuroutadori/turdus_merula ${args[*]}"
+    $kuroutadori/turdus_merula "${args[@]}"
 }
 
 # Function to get iOS version from build number using firmwares.json
@@ -7360,22 +7370,22 @@ device_ramdisk() {
 device_ramdisk_setnvram() {
     log "Sending commands for setting NVRAM variables..."
     $ssh -p $ssh_port root@127.0.0.1 "nvram -c; nvram boot-partition=$rec"
-    local nvram="nvram boot-ramdisk=/a/b/c/d/e/f/g/h/i"
+    local nvram="nvram boot-ramdisk="
     if [[ $rec == 2 ]]; then
         case $device_type in
-            iPhone3,3 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/disk.dmg";;
-            iPad2,4   ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/j/k/l/m/n/o/p/q/r/s/t/disk.dmg";;
-            iPhone4,1 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/j/k/l/m/n/o/p/q/r/disk.dmg";;
+            iPhone3,3 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/a/b/c/d/e/f/g/h/i/disk.dmg";;
+            iPad2,4   ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/disk.dmg";;
+            iPhone4,1 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/disk.dmg";;
             iPhone5,* )
                 local selection=("iOS 7.1.x" "iOS 7.0.x")
                 input "Select this device's base version:"
                 select_option "${selection[@]}"
                 case $? in
-                    1 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/j/k/l/m/disk.dmg";;
-                    * ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/j/k/l/m/n/o/p/q/r/s/t/u/v/w/disk.dmg";;
+                    1 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/a/b/c/d/e/f/g/h/i/j/k/l/m/disk.dmg";;
+                    * ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/disk.dmg";;
                 esac
             ;;
-            iPod5,1 | iPad3,[456] ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/j/k/l/m/disk.dmg";;
+            iPod5,1 | iPad3,[456] ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/a/b/c/d/e/f/g/h/i/j/k/l/m/disk.dmg";;
             iPad1,1 | iPod3,1 )
                 device_ramdisk_iosvers
                 if [[ $device_vers == "3"* ]]; then
@@ -11361,9 +11371,10 @@ device_justboot() {
         cat "$device_rd_build" > "../saved/$device_type/justboot_${device_ecid}"
     fi
     if [[ $device_rd_build == "14"* ]]; then
-        kuroutadori_init
         device_enter_mode DFU
-        $psudo ../saved/$kuroutadori/bin/litera1n -T
+        kuroutadori_init
+        log "Running litera1n: $kuroutadori/litera1n -T"
+        $kuroutadori/litera1n -T
         return
     fi
     device_ramdisk justboot
@@ -12084,6 +12095,7 @@ for i in "$@"; do
         "--gasgauge-patch" | "--multipatch") ipsw_gasgauge_patch=1;;
         "--memory"          ) ipsw_memory=1;;
         "--pwned-recovery"  ) device_pwnrec=1;;
+        "--ra1n-timeout="*  ) device_ra1n_timeout="${i#*=}";;
         "--skip-first"      ) ipsw_skip_first=1;;
         "--skip-ibss"       ) device_skip_ibss=1;;
 

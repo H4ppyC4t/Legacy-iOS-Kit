@@ -144,7 +144,6 @@
     - [iPad 1 exploit ramdisk is from Ralph0045](https://github.com/Ralph0045/iBoot-5-Stuff)
     - [iPad 4 and touch 5 7.0.x exploit ramdisks are from Pingzi610](https://github.com/Pingzi610/iloader)
 - [ipwndfu](https://github.com/LukeZGD/ipwndfu) - axi0mX; LukeZGD fork
-- [iPwnder32](https://github.com/LukeZGD/iPwnder32) libusb - dora2ios; LukeZGD fork
 - [ipwnder_lite](https://github.com/LukeZGD/ipwnder_lite) - dora2ios; LukeZGD fork
 - [gaster](https://github.com/LukeZGD/gaster) - 0x7ff; LukeZGD fork
 - [primepwn](https://github.com/LukeZGD/primepwn)
