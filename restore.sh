@@ -1523,7 +1523,7 @@ device_get_info() {
     esac
 
     case $device_type in
-        iPhone3,[13] | iPhone[45],* | iPad1,1 | iPad2,4 | iPad3,[456] | iPod[35],1 ) device_canpowder=1;; # powdersn0w device support
+        iPhone[345],* | iPad1,1 | iPad2,4 | iPad3,[456] | iPod[35],1 ) device_canpowder=1;; # powdersn0w device support
     esac
 
     device_fw_dir="../saved/firmware/$device_type"
@@ -3792,11 +3792,11 @@ ipsw_prepare_bundle() {
         case $device_type in
             iPhone5,[12] ) hw="iphone5";;
             iPhone5,[34] ) hw="iphone5b";;
-            iPad3,[456] )  hw="ipad3b";;
+            iPad3,[456]  ) hw="ipad3b";;
         esac
         case $device_base_build in
-            "11A"* | "11B"* ) base_build="11B554a";;
-            "9"* ) base_build="9B206";;
+            11[AB]* ) base_build="11B554a";;
+            9*      ) base_build="9B206";;
         esac
         echo "<key>RamdiskExploit</key><dict>" >> $NewPlist
         echo "<key>exploit</key><string>src/target/$hw/$base_build/exploit</string>" >> $NewPlist
@@ -7384,6 +7384,7 @@ device_ramdisk_setnvram() {
     local nvram="nvram boot-ramdisk="
     if [[ $rec == 2 ]]; then
         case $device_type in
+            iPhone3,2 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/0/disk.dmg";;
             iPhone3,3 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/a/b/c/d/e/f/g/h/i/disk.dmg";;
             iPad2,4   ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/disk.dmg";;
             iPhone4,1 ) $ssh -p $ssh_port root@127.0.0.1 "$nvram/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/disk.dmg";;
@@ -8800,7 +8801,7 @@ menu_restore() {
             ;;
         esac
         case $device_type in
-            iPhone3,[13] | iPad1,1 | iPod3,1 )
+            iPhone3,* | iPad1,1 | iPod3,1 )
                 menu_items+=("powdersn0w (any iOS)");;
         esac
         if (( device_proc < 7 )) || [[ $platform == "linux" ]]; then
@@ -8853,7 +8854,6 @@ menu_restore() {
         case $device_type in
             iPad2,4      ) print "* iPad2,4 does not support 6.1.3 downgrades, you need blobs for 6.1.3 or 7.1.x"; echo;;
             iPhone5,[34] ) print "* iPhone 5C does not support 8.4.1 downgrades, you need blobs for 8.4.1 or 7.x"; echo;;
-            iPhone3,2    ) print "* iPhone3,2 does not support downgrades with powdersn0w"; echo;;
             iPod4,1      ) print "* iPod touch 4 does not support any untethered downgrades without blobs"; echo;;
         esac
         if [[ $platform == "macos" ]] && (( device_proc >= 7 )); then
@@ -9929,7 +9929,7 @@ menu_ipsw_browse() {
             local check_vers="7.1"
             local base_vers="7.1.x"
             case $device_type in
-                iPhone5,[1234] | iPod5,1 )
+                iPhone5,* | iPod5,1 )
                     check_vers="7"
                     base_vers="7.x"
                 ;;

@@ -142,7 +142,7 @@
     - [iPhone 5C 7.0.x exploit ramdisk is from m1zole](https://github.com/m1zole/untitled_pub)
     - [Other iPhone 5/5C ramdisks are from Ralph0045's iloader repo](https://github.com/Ralph0045/iloader)
     - [iPad 1 exploit ramdisk is from Ralph0045](https://github.com/Ralph0045/iBoot-5-Stuff)
-    - [iPad 4 and touch 5 7.0.x exploit ramdisks are from Pingzi610](https://github.com/Pingzi610/iloader)
+    - [iPhone3,2, iPad 4, and touch 5 7.0.x exploit ramdisks are from Pingzi610](https://github.com/Pingzi610/iloader)
 - [ipwndfu](https://github.com/LukeZGD/ipwndfu) - axi0mX; LukeZGD fork
 - [ipwnder_lite](https://github.com/LukeZGD/ipwnder_lite) - dora2ios; LukeZGD fork
 - [gaster](https://github.com/LukeZGD/gaster) - 0x7ff; LukeZGD fork
