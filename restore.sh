@@ -4052,11 +4052,10 @@ ipsw_prepare_32bit() {
             *      ) JBFiles+=("$jelbrek/fstab_rw.tar");;
         esac
         JBFiles+=("freeze.tar")
-        if [[ $device_target_vers == "9"* ]]; then
-            JBFiles+=("$jelbrek/launchctl.tar")
-        elif [[ $device_target_vers == "5"* ]]; then
-            JBFiles+=("$jelbrek/cydiasubstrate.tar")
-        fi
+        case $device_target_vers in
+            9.* ) JBFiles+=("$jelbrek/launchctl.tar" "$jelbrek/zebra.tar");;
+            5.* ) JBFiles+=("$jelbrek/cydiasubstrate.tar");;
+        esac
         if [[ $ipsw_openssh == 1 ]]; then
             cp $jelbrek/openssh.tar.gz $jelbrek/openssl.tar.gz .
             gzip -d openssh.tar.gz
@@ -5350,9 +5349,10 @@ ipsw_prepare_powder() {
         if [[ -n ${JBFiles[0]} ]]; then
             JBFiles[0]=$jelbrek/${JBFiles[0]}
         fi
-        if [[ $target_vers_maj == 5 ]]; then
-            JBFiles+=("$jelbrek/cydiasubstrate.tar")
-        fi
+        case $device_target_vers in
+            9.* ) JBFiles+=("$jelbrek/zebra.tar");;
+            5.* ) JBFiles+=("$jelbrek/cydiasubstrate.tar");;
+        esac
         case $device_target_vers in
             [689].* ) :;;
             * ) JBFiles+=("freeze.tar");;
@@ -7309,7 +7309,7 @@ device_ramdisk() {
                 [543]* ) device_send_rdtar cydiasubstrate.tar;;
             esac
             case $vers in
-                9.* ) device_send_rdtar launchctl.tar;;
+                9.* ) device_send_rdtar launchctl.tar; device_send_rdtar zebra.tar;;
                 3.* ) device_send_rdtar cydiahttpatch.tar;;
             esac
             case $vers in
