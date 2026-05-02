@@ -2285,7 +2285,6 @@ device_enter_mode() {
                 log "gaster reset"
                 $gaster reset
             elif [[ $tool == "primepwn" ]]; then
-                log "Placing device to pwnDFU mode using primepwn"
                 $primepwn $use_limera1n
                 tool_pwned=$?
             fi
@@ -2714,7 +2713,7 @@ patch_ibec() {
     if [[ $device_proc == 4 || -n $device_rd_build || $device_type == "iPad3,1" ]]; then
         "$dir/iBoot32Patcher" $name.dec $name.patched --rsa --ticket -b "rd=md0 -v amfi=0xff cs_enforcement_disable=1" -c "go" $address
     else
-        $bspatch $name.dec $name.patched "../resources/patch/$download_targetfile.patch"
+        $bspatch $name.dec $name.patched "../resources/patch/odysseus/$download_targetfile.patch"
     fi
     "$dir/xpwntool" $name.patched pwnediBEC.dfu -t $name.orig
     rm $name.dec $name.orig $name.patched
@@ -3136,15 +3135,15 @@ ipsw_prepare_1033() {
     file_extract_from_archive "$ipsw_path.ipsw" Firmware/dfu/$iBEC.im4p
     mv $iBSS.im4p $iBSS.orig
     mv $iBEC.im4p $iBEC.orig
-    $bspatch $iBSS.orig $iBSS.im4p ../resources/patch/$iBSS.patch
-    $bspatch $iBEC.orig $iBEC.im4p ../resources/patch/$iBEC.patch
+    $bspatch $iBSS.orig $iBSS.im4p ../resources/patch/1033/$iBSS.patch
+    $bspatch $iBEC.orig $iBEC.im4p ../resources/patch/1033/$iBEC.patch
     if [[ $device_type == "iPad4,"* ]]; then
         file_extract_from_archive "$ipsw_path.ipsw" Firmware/dfu/$iBSSb.im4p
         file_extract_from_archive "$ipsw_path.ipsw" Firmware/dfu/$iBECb.im4p
         mv $iBSSb.im4p $iBSSb.orig
         mv $iBECb.im4p $iBECb.orig
-        $bspatch $iBSSb.orig $iBSSb.im4p ../resources/patch/$iBSSb.patch
-        $bspatch $iBECb.orig $iBECb.im4p ../resources/patch/$iBECb.patch
+        $bspatch $iBSSb.orig $iBSSb.im4p ../resources/patch/1033/$iBSSb.patch
+        $bspatch $iBECb.orig $iBECb.im4p ../resources/patch/1033/$iBECb.patch
     fi
     case $device_type in
         iPad4,[45] ) cp $iBSSb.im4p $iBECb.im4p ../saved/$device_type;;
@@ -3452,7 +3451,6 @@ ipsw_prepare_fourthree_part2() {
         file_extract_from_archive "$ipsw_base_path.ipsw" kernelcache.release.$device_model
         "$dir/xpwntool" kernelcache.release.$device_model kernelcache.dec -iv $iv -k $key
         $bspatch kernelcache.dec kernelcache.patched $bpatch/kernelcache.release.patch
-        #$bspatch kernelcache.dec kernelcache.patched ../resources/patch/kernelcache.release.$device_model.$device_base_build.patch
         "$dir/xpwntool" kernelcache.patched kernelcachb -t kernelcache.release.$device_model -iv $iv -k $key
         "$dir/xpwntool" kernelcachb $saved_path/Kernelcache -iv $iv -k $key -decrypt
     fi
@@ -5451,19 +5449,6 @@ ipsw_prepare_patchcomp() {
     local iv
     local key
 
-    if [[ $1 == "Kernelcache" ]]; then
-        path=
-        name="kernelcache.release"
-        ext="s5l8900x"
-        patch="../resources/patch/$name.$ext.p2"
-        log "Patch $1"
-        file_extract_from_archive temp.ipsw $name.$ext
-        mv $name.$ext kc.orig
-        $bspatch kc.orig $name.$ext $patch.patch
-        zip -r0 temp.ipsw $name.$ext
-        return
-    fi
-
     if [[ $1 == "WTF2" ]]; then
         path="Firmware/dfu/"
         name="WTF.s5l8900xall.RELEASE"
@@ -5537,7 +5522,7 @@ ipsw_prepare_patchcomp() {
         if [[ $1 == "RestoreKernelCache" ]]; then
             local ivkey="-iv 7238dcea75bf213eff209825a03add51 -k 0295d4ef87b9db687b44f54c8585d2b6"
             "$dir/xpwntool" $name.$ext kernelcache $ivkey
-            $bspatch kernelcache kc.patched ../resources/patch/$name.$ext.patch
+            $bspatch kernelcache kc.patched ../resources/firmware/FirmwareBundles/Down_iPhone1,2_4.1_8B117.bundle/kernelcache.release.patch
             "$dir/xpwntool" kc.patched Downgrade/$1 -t $name.$ext $ivkey
         else
             mv $name.$ext Downgrade/$1
@@ -5637,8 +5622,6 @@ ipsw_prepare_s5l8900() {
         ipsw_prepare_patchcomp iBSS
         ipsw_prepare_patchcomp RestoreDeviceTree
         ipsw_prepare_patchcomp RestoreKernelCache
-    elif [[ $device_target_vers == "3.1.3" ]]; then
-        ipsw_prepare_patchcomp Kernelcache
     fi
     mv temp.ipsw "$ipsw_custom.ipsw"
 }
@@ -6851,6 +6834,7 @@ device_ramdisk() {
     local build_id
     local mode="$1"
     local rec=2
+    local bundle="../resources/firmware/FirmwareBundles/Down_"
 
     if [[ $1 == "setnvram" ]]; then
         rec=$2
@@ -6860,7 +6844,7 @@ device_ramdisk() {
     fi
     case $device_type in
         iPhone1,[12] | iPod1,1 ) device_target_build="7E18"; device_target_vers="3.1.3";;
-        iPod2,1 ) device_target_build="8C148";;
+        iPod2,1 ) device_target_build="8C148"; device_target_vers="4.2.1";;
         iPod3,1 | iPad1,1 ) device_target_build="9B206";;
         iPhone2,1 | iPod4,1 ) device_target_build="10B500";;
         iPhone5,[34] ) device_target_build="11D257";;
@@ -6872,6 +6856,7 @@ device_ramdisk() {
     fi
     version=$device_target_vers
     build_id=$device_target_build
+    bundle+="${device_type}_${version}_${build_id}.bundle"
     if [[ -z $ipsw_justboot_path ]]; then
         local ipsw_path=$(ls ../${device_type}*${build_id}_Restore.ipsw 2>/dev/null)
         if [[ -s "$ipsw_path" ]]; then
@@ -6950,38 +6935,29 @@ device_ramdisk() {
     if [[ $1 != "justboot" ]]; then
         log "Patch RestoreRamdisk"
         "$dir/xpwntool" RestoreRamdisk.dec Ramdisk.raw
-        if [[ $device_proc != 1 ]]; then
-            "$dir/hfsplus" Ramdisk.raw grow 30000000
-            "$dir/hfsplus" Ramdisk.raw untar ../resources/sshrd/sbplist.tar
-        fi
+        "$dir/hfsplus" Ramdisk.raw grow 30000000
+        "$dir/hfsplus" Ramdisk.raw untar ../resources/sshrd/sbplist.tar
     fi
 
-    if [[ $device_proc == 1 ]]; then
-        $bspatch Ramdisk.raw Ramdisk.patched ../resources/patch/018-6494-014.patch
-        "$dir/xpwntool" Ramdisk.patched Ramdisk.dmg -t RestoreRamdisk.dec
-        log "Patch iBSS"
-        $bspatch iBSS.orig iBSS ../resources/patch/iBSS.${device_model}ap.RELEASE.patch
-        log "Patch Kernelcache"
-        mv Kernelcache.dec Kernelcache0.dec
-        $bspatch Kernelcache0.dec Kernelcache.patched ../resources/patch/kernelcache.release.s5l8900x.patch
-        "$dir/xpwntool" Kernelcache.patched Kernelcache.dec -t Kernelcache.orig $decrypt
-        rm DeviceTree.dec
-        mv DeviceTree.orig DeviceTree.dec
-    elif [[ $device_type == "iPod2,1" ]]; then
-        "$dir/hfsplus" Ramdisk.raw untar ../resources/sshrd/ssh_old.tar
+    if [[ $device_proc == 1 || $device_type == "iPod2,1" ]]; then
+        cp ../resources/sshrd/ssh_old.tar.gz .
+        gzip -d ssh_old.tar.gz
+        "$dir/hfsplus" Ramdisk.raw untar ssh_old.tar
         "$dir/xpwntool" Ramdisk.raw Ramdisk.dmg -t RestoreRamdisk.dec
         log "Patch iBSS"
-        $bspatch iBSS.dec iBSS.patched ../resources/patch/iBSS.${device_model}ap.RELEASE.patch
+        $bspatch iBSS.dec iBSS.patched $bundle/iBSS.${device_model}ap.RELEASE.patch
         "$dir/xpwntool" iBSS.patched iBSS -t iBSS.orig
         log "Patch Kernelcache"
         mv Kernelcache.dec Kernelcache0.dec
-        $bspatch Kernelcache0.dec Kernelcache.patched ../resources/patch/kernelcache.release.${device_model}.patch
+        $bspatch Kernelcache0.dec Kernelcache.patched $bundle/kernelcache.release.patch
         "$dir/xpwntool" Kernelcache.patched Kernelcache.dec -t Kernelcache.orig $decrypt
         rm DeviceTree.dec
         mv DeviceTree.orig DeviceTree.dec
     else
         if [[ $1 != "justboot" ]]; then
-            "$dir/hfsplus" Ramdisk.raw untar ../resources/sshrd/ssh.tar
+            cp ../resources/sshrd/ssh.tar.gz .
+            gzip -d ssh.tar.gz
+            "$dir/hfsplus" Ramdisk.raw untar ssh.tar
             if [[ $1 == "jailbreak" && $device_vers == "8"* ]]; then
                 "$dir/hfsplus" Ramdisk.raw untar ../resources/jailbreak/daibutsu/bin.tar
             fi
@@ -7006,7 +6982,7 @@ device_ramdisk() {
                 8[FGHJKL]* | 8E600 | 8E501 ) device_boot4=1;;
             esac
         fi
-        if [[ $device_boot4 == 1 ]]; then
+        if [[ $device_boot4 == 1 && $build_id == "8E"* ]]; then
             "$dir/iBoot32Patcher" iBSS.raw iBSS.patched --rsa --debug -b "-v amfi=0xff cs_enforcement_disable=1"
         else
             "$dir/iBoot32Patcher" iBSS.raw iBSS.patched --rsa --debug -b "$device_bootargs"
@@ -7026,7 +7002,7 @@ device_ramdisk() {
         fi
     fi
 
-    if [[ $device_boot4 == 1 ]]; then
+    if [[ $device_boot4 == 1 && $build_id == "8E"* ]]; then
         log "Patch Kernelcache"
         mv Kernelcache.dec Kernelcache0.dec
         "$dir/xpwntool" Kernelcache0.dec Kernelcache.raw
@@ -7041,7 +7017,7 @@ device_ramdisk() {
         return
     fi
 
-    if [[ $1 == "jailbreak" || $1 == "justboot" ]]; then
+    if [[ $1 == "jailbreak" || $1 == "justboot" || $device_type == "iPod2,1" ]]; then
         device_enter_mode pwnDFU
     elif [[ $device_proc == 1 ]]; then
         device_enter_mode DFU
@@ -7105,13 +7081,6 @@ device_ramdisk() {
         found=$($ssh -p $ssh_port root@127.0.0.1 "echo 1")
         sleep 2
     done
-    if [[ $device_proc == 1 || $device_type == "iPod2,1" ]]; then
-        log "Transferring some files"
-        tar -xvf ../resources/sshrd/ssh.tar ./bin/chmod ./bin/chown ./bin/cp ./bin/dd ./bin/mount.sh ./bin/tar ./usr/bin/date ./usr/bin/df ./usr/bin/du
-        $ssh -p $ssh_port root@127.0.0.1 "rm -f /bin/mount.sh /usr/bin/date"
-        $scp -P $ssh_port bin/* root@127.0.0.1:/bin
-        $scp -P $ssh_port usr/bin/* root@127.0.0.1:/usr/bin
-    fi
 
     case $mode in
         "activation" | "baseband" )
@@ -9356,10 +9325,6 @@ menu_ipsw() {
                 print "* Selected Target IPSW: $ipsw_path.ipsw"
                 ipsw_print_warnings
                 can_start=1
-                if [[ $device_target_vers == "$device_latest_vers" &&
-                      $device_mode != "none" && -z $2 ]]; then
-                    menu_items+=("(*) Start Update")
-                fi
             elif [[ $device_proc == 1 && $device_type != "iPhone1,2" ]]; then
                 can_start=1
             else
@@ -9400,6 +9365,9 @@ menu_ipsw() {
             echo
         fi
         if [[ $can_start == 1 ]]; then
+            if [[ $device_target_vers == "$device_latest_vers" && $device_mode != "none" && -z $2 ]]; then
+                menu_items+=("(*) Start Update")
+            fi
             menu_items+=("$start")
         fi
         menu_items+=("Go Back")
@@ -10692,7 +10660,7 @@ device_ssh_message() {
     log "Please read the message below:"
     print "* Follow these instructions to connect to the device."
     if [[ $device_vers_maj == 10 ]] && (( device_proc < 7 )); then
-        print "1. Jailbreak with socket: https://github.com/LukeZGD/socket"
+        print "1. Jailbreak with socket: https://github.com/staturnzz/socket"
         print "  - And install \"Dropbear\" from my repo: https://lukezgd.github.io/repo"
     else
         print "1. Install \"OpenSSH\" in Cydia or Zebra."
