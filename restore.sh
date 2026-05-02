@@ -1202,8 +1202,10 @@ device_s5l8900xall() {
     $bspatch $wtf_saved $wtf_patched $wtf_patch
     log "Sending patched WTF.s5l8900xall (Pwnage 2.0)"
     $irecovery -f "$wtf_patched"
+    if [[ $platform == "macos" ]]; then
+        print "* If your device is unable to be detected in DFU mode, try switching to a USB-C to USB-A dongle instead of USB-C dock/hub."
+    fi
     device_find_mode DFUreal
-    sleep 1
     device_srtg="$($irecovery -q | grep "SRTG" | cut -c 7-)"
     log "SRTG: $device_srtg"
     if [[ $device_srtg == "iBoot-636.66.3x" ]]; then
@@ -7071,6 +7073,7 @@ device_ramdisk() {
         log "Sending ramdisk..."
         $irecovery -f $ramdisk_path/Ramdisk.dmg
         log "Running ramdisk"
+        $irecovery -c "getenv ramdisk-delay" # required for s5l8900
         $irecovery -c ramdisk
     fi
     log "Sending DeviceTree..."
