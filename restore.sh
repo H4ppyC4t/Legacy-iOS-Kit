@@ -6661,8 +6661,9 @@ device_ramdisk64() {
     device_target_build="$build_id"
     device_fw_key_check
     ipsw_get_url $build_id
-
     mkdir -p $ramdisk_path
+    rm -f $ramdisk_path/*.img4 $ramdisk_path/iBEC.im4p $ramdisk_path/iBSS.im4p
+
     for getcomp in "${comps[@]}"; do
         name=$(echo $device_fw_key | $jq -j '.keys[] | select(.image == "'$getcomp'") | .filename')
         iv=$(echo $device_fw_key | $jq -j '.keys[] | select(.image == "'$getcomp'") | .iv')
@@ -6759,30 +6760,31 @@ device_ramdisk64() {
             ;;
         esac
         "$dir/img4" $reco
-        cp $getcomp.img4 $ramdisk_path
     done
 
-    mv $ramdisk_path/iBSS.img4 $ramdisk_path/iBSS.im4p
-    mv $ramdisk_path/iBEC.img4 $ramdisk_path/iBEC.im4p
-    iBSS="$ramdisk_path/iBSS"
-    iBEC="$ramdisk_path/iBEC"
+    mv iBSS.img4 iBSS.im4p
+    mv iBEC.img4 iBEC.im4p
+    iBSS="iBSS"
+    iBEC="iBEC"
 
     if [[ $device_argmode == "none" ]]; then
-        log "Done creating SSH ramdisk files: saved/$device_type/ramdisk_$build_id"
+        mkdir -p $ramdisk_path/saved
+        cp *.img4 iBEC.im4p iBSS.im4p $ramdisk_path/saved/
+        log "Done creating SSH ramdisk files: saved/$device_type/ramdisk_$build_id/saved"
         return
     fi
     restore_prepare_pwnrec64
 
     log "Booting, please wait..."
-    $irecovery -f $ramdisk_path/RestoreRamdisk.img4
+    $irecovery -f RestoreRamdisk.img4
     $irecovery -c ramdisk
-    $irecovery -f $ramdisk_path/DeviceTree.img4
+    $irecovery -f DeviceTree.img4
     $irecovery -c devicetree
     if [[ $device_ramdisk_ios8 != 1 ]]; then
-        $irecovery -f $ramdisk_path/Trustcache.img4
+        $irecovery -f Trustcache.img4
         $irecovery -c firmware
     fi
-    $irecovery -f $ramdisk_path/Kernelcache.img4
+    $irecovery -f Kernelcache.img4
     $irecovery -c bootx
     sleep 6
 
@@ -6868,10 +6870,13 @@ device_ramdisk() {
         fi
         [[ -n $ipsw_justboot_path ]] && log "Found IPSW to use: $ipsw_justboot_path.ipsw"
     fi
+
     device_fw_key_check
     ipsw_get_url $build_id $device_type $version
     ramdisk_path="../saved/$device_type/ramdisk_$build_id"
     mkdir -p $ramdisk_path
+    rm -f $ramdisk_path/*.dec $ramdisk_path/iBEC $ramdisk_path/iBSS $ramdisk_path/Ramdisk.dmg
+
     for getcomp in "${comps[@]}"; do
         name=$(echo $device_fw_key | $jq -j '.keys[] | select(.image == "'$getcomp'") | .filename')
         iv=$(echo $device_fw_key | $jq -j '.keys[] | select(.image == "'$getcomp'") | .iv')
@@ -7010,10 +7015,10 @@ device_ramdisk() {
         "$dir/xpwntool" Kernelcache.patched Kernelcache.dec -t Kernelcache0.dec
     fi
 
-    mv iBSS iBEC DeviceTree.dec Kernelcache.dec Ramdisk.dmg $ramdisk_path 2>/dev/null
-
     if [[ $device_argmode == "none" ]]; then
-        log "Done creating SSH ramdisk files: saved/$device_type/ramdisk_$build_id"
+        mkdir -p $ramdisk_path/saved
+        cp *.dec iBEC iBSS Ramdisk.dmg $ramdisk_path/saved/
+        log "Done creating SSH ramdisk files: saved/$device_type/ramdisk_$build_id/saved"
         return
     fi
 
@@ -7031,15 +7036,15 @@ device_ramdisk() {
         $irecovery -f pwnediBSS.dfu
         sleep 1
         log "Sending iBEC..."
-        $irecovery -f $ramdisk_path/iBEC
+        $irecovery -f iBEC
     elif (( device_proc < 5 )) && [[ $device_pwnrec != 1 ]]; then
         log "Sending iBSS..."
-        $irecovery -f $ramdisk_path/iBSS
+        $irecovery -f iBSS
     fi
     sleep 1
     if [[ $build_id != "7"* && $build_id != "8"* ]]; then
         log "Sending iBEC..."
-        $irecovery -f $ramdisk_path/iBEC
+        $irecovery -f iBEC
         if [[ $device_pwnrec == 1 ]]; then
             $irecovery -c "go"
         fi
@@ -7047,17 +7052,17 @@ device_ramdisk() {
     device_find_mode Recovery
     if [[ $1 != "justboot" ]]; then
         log "Sending ramdisk..."
-        $irecovery -f $ramdisk_path/Ramdisk.dmg
+        $irecovery -f Ramdisk.dmg
         log "Running ramdisk"
         $irecovery -c "getenv ramdisk-delay" # required for s5l8900
         $irecovery -c ramdisk
     fi
     log "Sending DeviceTree..."
-    $irecovery -f $ramdisk_path/DeviceTree.dec
+    $irecovery -f DeviceTree.dec
     log "Running devicetree"
     $irecovery -c devicetree
     log "Sending KernelCache..."
-    $irecovery -f $ramdisk_path/Kernelcache.dec
+    $irecovery -f Kernelcache.dec
     $irecovery -c bootx
 
     if [[ $1 == "justboot" ]]; then
