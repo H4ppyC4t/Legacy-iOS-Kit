@@ -2241,10 +2241,8 @@ device_enter_mode() {
             tool="gaster"
             if [[ $device_proc == 4 ]]; then
                 tool="primepwn"
-                if [[ $platform == "macos" ]]; then
-                    case $device_type in
-                        iPad1,1 | iPhone3,* | iPod4,1 ) use_limera1n="--use-limera1n";;
-                    esac
+                if [[ $platform == "macos" && $device_type != "iPod2,1" ]]; then
+                    use_limera1n="--use-limera1n"
                 fi
             elif [[ $device_proc == 6 ]]; then
                 tool="litera1n"
