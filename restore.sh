@@ -2247,7 +2247,10 @@ device_enter_mode() {
             elif [[ $device_proc == 6 ]]; then
                 tool="litera1n"
                 if [[ $platform == "macos" ]]; then
-                    tool="ipwnder_lite"
+                    tool="ipwnder32"
+                    if [[ $platform_arch == "arm64" ]]; then
+                        tool="ipwnder_lite"
+                    fi
                 elif [[ $device_type == "iPhone5,"* ]]; then
                     tool="a6meowing"
                 fi
@@ -2273,6 +2276,9 @@ device_enter_mode() {
             elif [[ $tool == "litera1n" ]]; then
                 kuroutadori_init
                 kuroutadori_litera1n -p
+                tool_pwned=$?
+            elif [[ $tool == "ipwnder32" ]]; then
+                "$dir/ipwnder32" -p --noibss
                 tool_pwned=$?
             elif [[ $tool == "ipwnder_lite" ]]; then
                 mkdir -p image3 ../saved/image3
