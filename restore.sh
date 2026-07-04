@@ -2509,11 +2509,37 @@ file_download() {
 }
 
 device_fw_key_server() {
-    local venv="../saved/wikiproxy_venv"
+    local venv_name
+    local venv
+    local repo
+    local python_minver
+
+    python_minver=$(python3 -c 'import sys; print(sys.version_info[1])')
+    if [[ -z $python_minver ]]; then
+        if [[ $platform == "macos" ]]; then
+            error_msg+="* If you get the 'python3: command not found' error, download and install Python 3 here: https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg"
+            error_msg+=$'\n* This is the latest version of Python 3 that will run on as low as 10.11 El Capitan.\n'
+        fi
+        error_msg+='* For more troubleshooting steps, go to the "Running wikiproxy" wiki page in GitHub.'
+        error_msg+=$'\n* Troubleshooting link: https://github.com/LukeZGD/Legacy-iOS-Kit/wiki/running-wikiproxy'
+        error "Failed to initialize Python 3." "$error_msg"
+    fi
+    if (( python_minver <= 13 )); then
+        repo="LukeZGD"
+    else
+        repo="m1stadev"
+    fi
+    venv_name="wikiproxy-${repo}_venv"
+    venv="../saved/$venv_name"
+
+    # remove old venv
+    if [[ -d "../saved/wikiproxy_venv" ]]; then
+        rm -r "../saved/wikiproxy_venv"
+    fi
 
     if [[ ! -d $venv || ! -s $venv/bin/python3 ]]; then
         log "Creating venv for wikiproxy"
-        python3 -m venv $venv
+        python3 -m venv "$venv"
     fi
     if [[ ! -d $venv || ! -s $venv/bin/python3 ]]; then
         warn "Creation of venv seems to have failed. wikiproxy will not run."
@@ -2523,11 +2549,11 @@ device_fw_key_server() {
 
     if [[ ! -s $venv/bin/wikiproxy ]]; then
         log "Installing wikiproxy using pip..."
-        $venv/bin/pip install git+https://github.com/LukeZGD/wikiproxy.git
+        "$venv/bin/pip" install "git+https://github.com/${repo}/wikiproxy.git"
     fi
 
     log "Running wikiproxy..."
-    "$(cd .. && pwd)/saved/wikiproxy_venv/bin/wikiproxy" &
+    "$(cd .. && pwd)/saved/$venv_name/bin/wikiproxy" &
     httpserver_pid=$!
 
     log "Waiting for local server"
@@ -2575,8 +2601,7 @@ device_fw_key_check() {
     if [[ ! -e "$keys_path/index.html" ]]; then
         mkdir -p "$keys_path"
         local try=("https://raw.githubusercontent.com/LukeZGD/Legacy-iOS-Kit-Keys/master/$device_type/$build/index.html"
-                   "http://127.0.0.1:8888/firmware/$device_type/$build"
-                   "https://api.m1sta.xyz/wikiproxy/$device_type/$build")
+                   "http://127.0.0.1:8888/firmware/$device_type/$build")
         for i in "${try[@]}"; do
             [[ $i == *"127.0.0.1:8888"* ]] && device_fw_key_server
             log "Getting firmware keys for $device_type-$build: $i"
@@ -2587,9 +2612,9 @@ device_fw_key_check() {
             rm -f index.html
         done
         if [[ $(cat index.html | grep -c "$build") != 1 ]]; then
-            local error_msg="* You may need to run wikiproxy to get firmware keys."
-            error_msg+=$'\n* For more details, go to the "Troubleshooting" wiki page in GitHub.'
-            error_msg+=$'\n* Troubleshooting link: https://github.com/LukeZGD/Legacy-iOS-Kit/wiki/Troubleshooting#running-wikiproxy'
+            local error_msg=
+            error_msg+='* For more troubleshooting steps, go to the "Running wikiproxy" wiki page in GitHub.'
+            error_msg+=$'\n* Troubleshooting link: https://github.com/LukeZGD/Legacy-iOS-Kit/wiki/running-wikiproxy'
             error "Failed to download firmware keys." "$error_msg"
         fi
         mv index.html "$keys_path/"
@@ -3268,7 +3293,7 @@ ipsw_prepare_rebootsh() {
         echo "mv /mnt1/System/Library/LaunchDaemons/com.apple.mDNSResponder.plist_ /mnt1/Library/LaunchDaemons/com.apple.mDNSResponder.plist" | tee -a reboot.sh
         echo "mv /mnt1/Library/LaunchDaemons/com.apple.sandboxd.plist /mnt1/System/Library/LaunchDaemons/" | tee -a reboot.sh
         echo "mv /mnt1/Library/LaunchDaemons/com.saurik.Cydia.Startup.plist /mnt1/System/Library/LaunchDaemons/" | tee -a reboot.sh
-        local crash
+        local crash=
         [[ $1 == "aquila" ]] && crash+="_o"
         echo "mv /mnt1/usr/libexec/CrashHousekeeping$crash /mnt1/usr/libexec/CrashHousekeeping.backup" | tee -a reboot.sh
         echo "ln -sf /aquila /mnt1/usr/libexec/CrashHousekeeping" | tee -a reboot.sh

@@ -21,7 +21,7 @@ resources/jailbreak/g1lbertJB/payload/Cydia.tar
 resources/jailbreak/g1lbertJB/var
 resources/powdersn0w/
 resources/ramdisk/
-saved/
+saved*/
 sudoloop
 tmp*/
 version.xml
