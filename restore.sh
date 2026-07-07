@@ -2513,11 +2513,12 @@ device_fw_key_server() {
     local venv
     local repo
     local python_minver
+    local error_msg=
 
     python_minver=$(python3 -c 'import sys; print(sys.version_info[1])')
     if [[ -z $python_minver ]]; then
         if [[ $platform == "macos" ]]; then
-            error_msg+="* If you get the 'python3: command not found' error, download and install Python 3 here: https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg"
+            error_msg="* If you get the 'python3: command not found' error, download and install Python 3 here: https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg"
             error_msg+=$'\n* This is the latest version of Python 3 that will run on as low as 10.11 El Capitan.\n'
         fi
         error_msg+='* For more troubleshooting steps, go to the "Running wikiproxy" wiki page in GitHub.'
