@@ -2832,6 +2832,9 @@ ipsw_preference_set() {
        [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other == 1 ]]; then
         ipsw_gasgauge_patch=1
     fi
+    case $device_type in
+        iPad2,[36] | iPhone5,[34] ) ipsw_gasgauge_patch=1;;
+    esac
     if [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
           $device_proc == 6 && $target_vers_maj == 10 ]]; then
         warn "multipatch is not supported on A6(X) tethered iOS 10, so it will be disabled."
@@ -4247,8 +4250,10 @@ ipsw_bbreplace() {
     local sbl_latest
     local bbfw="Print BuildIdentities:0:Manifest:BasebandFirmware"
     local ubid
-    if [[ $device_use_bb == 0 || $device_target_vers == "$device_latest_vers" ||
-          $device_type == "$device_disable_bbupdate" ]] || (( device_proc < 5 )); then
+    if [[ $device_type == "iPad2,6" || $device_type == "iPhone5,3" || $device_type == "iPhone5,4" ]] && [[ $device_target_vers == "$device_latest_vers" ]]; then
+        :
+    elif [[ $device_use_bb == 0 || $device_target_vers == "$device_latest_vers" ||
+            $device_type == "$device_disable_bbupdate" ]] || (( device_proc < 5 )); then
         return
     fi
 
@@ -5107,6 +5112,8 @@ ipsw_prepare_multipatch() {
             mv BuildManifest.tmp BuildManifest.plist
         fi
         if [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_vers != "$device_latest_vers" ]]; then
+            ipsw_bbreplace exist
+        elif [[ $device_type == "iPhone5,3" || $device_type == "iPhone5,4" ]] && [[ $device_target_vers == "$device_latest_vers" ]]; then
             ipsw_bbreplace exist
         else
             zip -r0 temp.ipsw BuildManifest.plist
