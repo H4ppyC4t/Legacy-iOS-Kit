@@ -2396,16 +2396,16 @@ device_send_unpacked_ibss() {
 }
 
 ipwndfu_init() {
-    local ipwndfu_comm="f8d8c34d91cf8c005f76b005c647b889db034cc4"
-    local ipwndfu_sha1="c3370f4afa82117968ef12f6ffa5ecfa391c1148"
+    local ipwndfu_comm="3c0e66b97f307f0e97e641c1b9c064dcb9f40cd2"
+    local ipwndfu_sha1="9e8b5947fcfa2bec097d60fd74b17583993517c8"
     ipwndfu="ipwndfu_python3"
     if [[ $device_sudoloop == 1 ]]; then
         psudo="$sudo"
     fi
     if [[ $platform == "macos" ]] && (( mac_majver <= 11 )); then
         ipwndfu="ipwndfu"
-        ipwndfu_comm="f395a331bee8e91eafbd39f3cfdecf9aaf1d7d38"
-        ipwndfu_sha1="30644c70cc4681d8207f1a03ac54f755557764b0"
+        ipwndfu_comm="5466b3dfb5d7a4842ecb97fcc3a5263704eb59b3"
+        ipwndfu_sha1="e8c4203a100017a00522fd9c4f9ec566167962b6"
     fi
     if [[ ! -s ../saved/$ipwndfu/ipwndfu || $(cat ../saved/$ipwndfu/sha1check) != "$ipwndfu_sha1" ]]; then
         rm -rf ../saved/$ipwndfu
@@ -2508,27 +2508,27 @@ file_download() {
     fi
 }
 
-device_fw_key_server() {
-    local venv_name
-    local venv
-    local repo
-    local python_minver
-    local error_msg=
-
+python3_init() {
     python_minver=$(python3 -c 'import sys; print(sys.version_info[1])')
     if [[ -z $python_minver ]]; then
         if [[ $platform == "macos" ]]; then
-            error_msg="* If you get the 'python3: command not found' error, download and install Python 3 here: https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg"
-            error_msg+=$'\n* This is the latest version of Python 3 that will run on as low as 10.11 El Capitan.\n'
+            error_msg=$'* If you get the "python3: command not found" error, download and install Python 3 from the official website.\n'
         fi
-        error_msg+='* For more troubleshooting steps, go to the "Running wikiproxy" wiki page in GitHub.'
-        error_msg+=$'\n* Troubleshooting link: https://github.com/LukeZGD/Legacy-iOS-Kit/wiki/running-wikiproxy'
+        error_msg+='* For more troubleshooting steps, go to the "Python 3 on older macOS" wiki page in GitHub.'
+        error_msg+=$'\n* Troubleshooting link: https://github.com/LukeZGD/Legacy-iOS-Kit/wiki/Python-3-on-older-macOS'
         error "Failed to initialize Python 3." "$error_msg"
     fi
+}
+
+device_fw_key_server() {
+    local venv_name
+    local venv
+    local repo="m1stadev"
+    local error_msg=
+
+    python3_init
     if (( python_minver <= 13 )); then
         repo="LukeZGD"
-    else
-        repo="m1stadev"
     fi
     venv_name="wikiproxy-${repo}_venv"
     venv="../saved/$venv_name"
@@ -4931,6 +4931,7 @@ ipsw_prepare_sundanceinh2a() {
         return
     fi
 
+    python3_init
     download_sundancerepo
 
     log "Copying freeze.tar to Cydia.tar"
@@ -12069,7 +12070,15 @@ device_erase() {
 
 device_trollrestore() {
     local trollrestore="../saved/TrollRestore"
-    local venv="${trollrestore}_venv"
+    local venv_name="${trollrestore}-newpy_venv"
+    local venv
+
+    python3_init
+    if (( python_minver <= 13 )); then
+        venv_name="${trollrestore}-oldpy_venv"
+    fi
+    venv="../saved/$venv_name"
+
     device_pair
     if [[ ! -d $trollrestore ]]; then
         log "Downloading TrollRestore"
@@ -12078,8 +12087,13 @@ device_trollrestore() {
         file_extract TrollRestore_Linux.zip $trollrestore
     fi
 
+    # remove old venv
+    if [[ -d "../saved/TrollRestore_venv" ]]; then
+        rm -r "../saved/TrollRestore_venv"
+    fi
+
     if [[ ! -d $venv || ! -s $venv/bin/python3 ]]; then
-        log "Creating venv"
+        log "Creating venv for TrollRestore"
         python3 -m venv $venv
     fi
     if [[ ! -d $venv || ! -s $venv/bin/python3 ]]; then
@@ -12088,12 +12102,20 @@ device_trollrestore() {
     fi
 
     log "Installing dependencies using pip..."
-    sed -i.bak '1s/.*/pymobiledevice3<=6.2.0/' $trollrestore/requirements.txt
-    $venv/bin/pip install -r $trollrestore/requirements.txt
+    local reqs_txt="requirements.txt"
+    if (( python_minver <= 13 )); then
+        reqs_txt="../resources/trollrestore-oldpy_requirements.txt"
+    else
+        sed '1s/.*/pymobiledevice3<=6.2.0/' "$trollrestore/requirements.txt" > requirements.txt
+    fi
+    $venv/bin/pip install -r "$reqs_txt"
+    if (( python_minver <= 13 )); then
+        $venv/bin/pip install --no-deps pymobiledevice3\<=4.13.27
+    fi
 
     log "Running TrollRestore..."
     print "* When it prompts to enter app name, type Tips and press Enter/Return"
-    "$(cd .. && pwd)/saved/TrollRestore_venv/bin/python3" $trollrestore/trollstore.py
+    "$(cd .. && pwd)/saved/$venv_name/bin/python3" $trollrestore/trollstore.py
 }
 
 main() {
