@@ -2872,7 +2872,7 @@ ipsw_preference_set() {
     # ipsw_nskip being 1 means that it will always create/use a custom ipsw.
     # useful for disabling baseband update, or in the case of macos arm64, not having to use futurerestore for 32-bit.
     case $device_type in
-        iPad[23],[23] | "$device_disable_bbupdate" ) ipsw_nskip=1;;
+        iPad[23],[23] | iPad2,6 | iPhone5,[34] | "$device_disable_bbupdate" ) ipsw_nskip=1;;
     esac
     if [[ $ipsw_gasgauge_patch != 1 && $ipsw_jailbreak != 1 && $device_target_vers == "$device_latest_vers" ]]; then
         ipsw_nskip=
