@@ -4264,9 +4264,9 @@ ipsw_bbreplace() {
         iPhone4,1 ) ubid="d9Xbp0xyiFOxDvUcKMsoNjIvhwQ=";;
         iPhone5,1 ) ubid="IcrFKRzWDvccKDfkfMNPOPYHEV0=";;
         iPhone5,2 ) ubid="lnU0rtBUK6gCyXhEtHuwbEz/IKY=";;
-        iPhone5,3 ) ubid="dwrol4czV3ijtNHh3w1lWIdsNdA=";;
-        iPhone5,4 ) ubid="Z4ST0TczwAhpfluQFQNBg7Y3BVE=";;
-        iPad2,6 ) ubid="L73HfN42pH7qAzlWmsEuIZZg2oE=";;
+        iPhone5,3 ) ubid="lnoGRL1B+Be2mF6Y6FNio8TPxM8=";; # iPhone6,1 ubid. orig: 5MDMapCrTG5J33jbtOLgWNLwzKs=
+        iPhone5,4 ) ubid="EHCDmDBeezNwTZsyiWYWQCllnz4=";; # iPhone6,2 ubid. orig: Z4ST0TczwAhpfluQFQNBg7Y3BVE=
+        iPad2,6 ) ubid="z/vJsvnUovZ+RGyXKSFB6DOjt1k=";; # iPad2,7 ubid. orig: L73HfN42pH7qAzlWmsEuIZZg2oE=
         iPad2,7 ) ubid="z/vJsvnUovZ+RGyXKSFB6DOjt1k=";;
         iPad3,5 ) ubid="849RPGQ9kNXGMztIQBhVoU/l5lM=";;
         iPad3,6 ) ubid="cO+N+Eo8ynFf+0rnsIWIQHTo6rg=";;
