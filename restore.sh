@@ -1135,10 +1135,6 @@ device_manufacturing() {
         case $device_type in
             iPhone4,1 | iPhone5,2 | iPad2,7 | iPad3,[26] ) device_9900candidate=1;;
         esac
-        case $device_type in
-            iPhone4,1 | iPhone5,* | iPad2,[67] | iPad3,[23] ) device_unsignedbb=1;;
-            iPad2,3 | iPad3,[23] ) device_unsignedbb=2;;
-        esac
         if [[ $device_type == "DFU" ]]; then
             print "* Cannot check for manufacturing date in DFU mode"
             return
@@ -2836,9 +2832,6 @@ ipsw_preference_set() {
        [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other == 1 ]]; then
         ipsw_gasgauge_patch=1
     fi
-    case $device_type in
-        iPad2,[367] | iPad3,[23] | iPhone4,1 | iPhone5,[1234] ) ipsw_gasgauge_patch=1;;
-    esac
     if [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
           $device_proc == 6 && $target_vers_maj == 10 ]]; then
         warn "multipatch is not supported on A6(X) tethered iOS 10, so it will be disabled."
@@ -2879,7 +2872,7 @@ ipsw_preference_set() {
     # ipsw_nskip being 1 means that it will always create/use a custom ipsw.
     # useful for disabling baseband update, or in the case of macos arm64, not having to use futurerestore for 32-bit.
     case $device_type in
-        iPad[23],[23] | iPad2,[67] | iPhone4,1 | iPhone5,[1234] | "$device_disable_bbupdate" ) ipsw_nskip=1;;
+        iPad[23],[23] | "$device_disable_bbupdate" ) ipsw_nskip=1;;
     esac
     if [[ $ipsw_gasgauge_patch != 1 && $ipsw_jailbreak != 1 && $device_target_vers == "$device_latest_vers" ]]; then
         ipsw_nskip=
@@ -4247,69 +4240,50 @@ replace_plist_data() {
 }
 
 ipsw_bbdigest() {
-    local loc_sub=
+    local loc="BuildIdentities:0:"
     if [[ $2 != "UniqueBuildID" ]]; then
-        loc_sub="Manifest:BasebandFirmware:"
+        loc+="Manifest:BasebandFirmware:"
     fi
-    loc_sub+="$2"
-
+    loc+="$2"
     local out="$1"
     log "Replacing $2"
-
-    local ind=(0)
-    if [[ $device_proc == 6 && $target_vers_maj == 10 ]]; then
-        ind+=(2 4)
-        [[ $device_type == "iPhone5,"* ]] && ind+=(6)
-    fi
-
     if [[ $platform == "macos" ]]; then
         echo $out | base64 --decode > t
-        for i in "${ind[@]}"; do
-            $PlistBuddy -c "Import BuildIdentities:$i:$loc_sub t" BuildManifest.plist
-        done
+        $PlistBuddy -c "Import $loc t" BuildManifest.plist
         rm t
         return
     fi
-
-    for i in "${ind[@]}"; do
-        in=$($PlistBuddy -c "Print BuildIdentities:$i:$loc_sub" BuildManifest.plist | tr -d "<>" | xxd -r -p | base64)
-        in="${in}<"
-        in="$(echo "$in" | sed -e 's,AAAAAAAAAAAAAAAAAAAAAAA<,==,' \
-                               -e 's,AAAAAAAAAAAAA<,=,' \
-                               -e 's,AAAAAAAAA<,=,')"
-        case $2 in
-            *"PartialDigest" )
-                replace_plist_data "$2" "$out"
-                return
-            ;;
-            * ) mv BuildManifest.plist tmp.plist;;
-        esac
-        sed "s,$in,$out," tmp.plist > BuildManifest.plist
-        rm tmp.plist
-    done
+    in=$($PlistBuddy -c "Print $loc" BuildManifest.plist | tr -d "<>" | xxd -r -p | base64)
+    in="${in}<"
+    in="$(echo "$in" | sed -e 's,AAAAAAAAAAAAAAAAAAAAAAA<,==,' \
+                           -e 's,AAAAAAAAAAAAA<,=,' \
+                           -e 's,AAAAAAAAA<,=,')"
+    case $2 in
+        *"PartialDigest" )
+            in="${in%????????????}"
+            in=$(grep -m1 "$in" BuildManifest.plist)
+            sed "s,$in,replace," BuildManifest.plist | \
+            awk 'f{f=0; next} /replace/{f=1} 1' | \
+            awk '/replace$/{printf "%s", $0; next} 1' > tmp.plist
+            in="replace"
+        ;;
+        * ) mv BuildManifest.plist tmp.plist;;
+    esac
+    sed "s,$in,$out," tmp.plist > BuildManifest.plist
+    rm tmp.plist
 }
 
 ipsw_bbreplace() {
-    local rsb1=()
-    local sbl1=()
-    local path=()
+    local rsb1
+    local sbl1
+    local path
     local rsb_latest
     local sbl_latest
-    local loc_sub="Manifest:BasebandFirmware"
+    local bbfw="Print BuildIdentities:0:Manifest:BasebandFirmware"
     local ubid
-    if [[ $device_type == "iPad2,6" || $device_type == "iPad2,7" ||
-          $device_type == "iPhone4,1" || $device_type == "iPhone5,"* ]] &&
-       [[ $device_target_vers == "$device_latest_vers" ]]; then
-        :
-    elif [[ $device_use_bb == 0 || $device_target_vers == "$device_latest_vers" ||
-            $device_type == "$device_disable_bbupdate" ]] || (( device_proc < 5 )); then
+    if [[ $device_use_bb == 0 || $device_target_vers == "$device_latest_vers" ||
+          $device_type == "$device_disable_bbupdate" ]] || (( device_proc < 5 )); then
         return
-    fi
-
-    local ind=(0)
-    if [[ $device_proc == 6 && $target_vers_maj == 10 ]]; then
-        ind+=(2 4)
-        [[ $device_type == "iPhone5,"* ]] && ind+=(6)
     fi
 
     if [[ $1 != "exist" ]]; then
@@ -4322,22 +4296,22 @@ ipsw_bbreplace() {
 
     case $device_type in
         iPhone4,1 ) ubid="d9Xbp0xyiFOxDvUcKMsoNjIvhwQ=";;
-        iPhone5,1 ) ubid="849RPGQ9kNXGMztIQBhVoU/l5lM=";; # iPad3,5 ubid. orig: IcrFKRzWDvccKDfkfMNPOPYHEV0=
-        iPhone5,2 ) ubid="849RPGQ9kNXGMztIQBhVoU/l5lM=";; # iPad3,5 ubid. orig: lnU0rtBUK6gCyXhEtHuwbEz/IKY=
-        iPhone5,3 ) ubid="lnoGRL1B+Be2mF6Y6FNio8TPxM8=";; # iPhone6,1 ubid. orig: 5MDMapCrTG5J33jbtOLgWNLwzKs=
-        iPhone5,4 ) ubid="EHCDmDBeezNwTZsyiWYWQCllnz4=";; # iPhone6,2 ubid. orig: Z4ST0TczwAhpfluQFQNBg7Y3BVE=
-        iPad2,6   ) ubid="849RPGQ9kNXGMztIQBhVoU/l5lM=";; # iPad3,5 ubid. orig: L73HfN42pH7qAzlWmsEuIZZg2oE=
-        iPad2,7   ) ubid="849RPGQ9kNXGMztIQBhVoU/l5lM=";; # iPad3,5 ubid. orig: z/vJsvnUovZ+RGyXKSFB6DOjt1k=
-        iPad3,5   ) ubid="849RPGQ9kNXGMztIQBhVoU/l5lM=";;
-        iPad3,6   ) ubid="cO+N+Eo8ynFf+0rnsIWIQHTo6rg=";;
+        iPhone5,1 ) ubid="IcrFKRzWDvccKDfkfMNPOPYHEV0=";;
+        iPhone5,2 ) ubid="lnU0rtBUK6gCyXhEtHuwbEz/IKY=";;
+        iPhone5,3 ) ubid="dwrol4czV3ijtNHh3w1lWIdsNdA=";;
+        iPhone5,4 ) ubid="Z4ST0TczwAhpfluQFQNBg7Y3BVE=";;
+        iPad2,6 ) ubid="L73HfN42pH7qAzlWmsEuIZZg2oE=";;
+        iPad2,7 ) ubid="z/vJsvnUovZ+RGyXKSFB6DOjt1k=";;
+        iPad3,5 ) ubid="849RPGQ9kNXGMztIQBhVoU/l5lM=";;
+        iPad3,6 ) ubid="cO+N+Eo8ynFf+0rnsIWIQHTo6rg=";;
     esac
     ipsw_bbdigest $ubid UniqueBuildID
 
     case $device_type in
         iPhone4,1 )
-            rsb1[0]=$($PlistBuddy -c "Print BuildIdentities:0:$loc_sub:eDBL-Version" BuildManifest.plist)
-            sbl1[0]=$($PlistBuddy -c "Print BuildIdentities:0:$loc_sub:RestoreDBL-Version" BuildManifest.plist)
-            path[0]=$($PlistBuddy -c "Print BuildIdentities:0:$loc_sub:Info:Path" BuildManifest.plist | tr -d '"')
+            rsb1=$($PlistBuddy -c "$bbfw:eDBL-Version" BuildManifest.plist)
+            sbl1=$($PlistBuddy -c "$bbfw:RestoreDBL-Version" BuildManifest.plist)
+            path=$($PlistBuddy -c "$bbfw:Info:Path" BuildManifest.plist | tr -d '"')
             rsb_latest="-1577031936"
             sbl_latest="-1575983360"
             ipsw_bbdigest XAAAAADHAQCqerR8d+PvcfusucizfQ4ECBI0TA== RestoreDBL-PartialDigest
@@ -4347,11 +4321,9 @@ ipsw_bbreplace() {
             ipsw_bbdigest 3CHVk7EmtGjL14ApDND81cqFqhM= AMSS-DownloadDigest
         ;;
         iPhone5,[12] | iPad2,[67] | iPad3,[56] )
-            for i in "${ind[@]}"; do
-                rsb1[$i]=$($PlistBuddy -c "Print BuildIdentities:$i:$loc_sub:RestoreSBL1-Version" BuildManifest.plist)
-                sbl1[$i]=$($PlistBuddy -c "Print BuildIdentities:$i:$loc_sub:SBL1-Version" BuildManifest.plist)
-                path[$i]=$($PlistBuddy -c "Print BuildIdentities:$i:$loc_sub:Info:Path" BuildManifest.plist | tr -d '"')
-            done
+            rsb1=$($PlistBuddy -c "$bbfw:RestoreSBL1-Version" BuildManifest.plist)
+            sbl1=$($PlistBuddy -c "$bbfw:SBL1-Version" BuildManifest.plist)
+            path=$($PlistBuddy -c "$bbfw:Info:Path" BuildManifest.plist | tr -d '"')
             rsb_latest="-1559114512"
             sbl_latest="-1560163088"
             ipsw_bbdigest 2bmJ7Vd+WAmogV+hjq1a86UlBvA= APPS-DownloadDigest
@@ -4368,11 +4340,9 @@ ipsw_bbreplace() {
             ipsw_bbdigest kHLoJsT9APu4Xwu/aRjNK10Hx84= SBL2-DownloadDigest
         ;;
         iPhone5,[34] )
-            for i in "${ind[@]}"; do
-                rsb1[$i]=$($PlistBuddy -c "Print BuildIdentities:$i:$loc_sub:RestoreSBL1-Version" BuildManifest.plist)
-                sbl1[$i]=$($PlistBuddy -c "Print BuildIdentities:$i:$loc_sub:SBL1-Version" BuildManifest.plist)
-                path[$i]=$($PlistBuddy -c "Print BuildIdentities:$i:$loc_sub:Info:Path" BuildManifest.plist | tr -d '"')
-            done
+            rsb1=$($PlistBuddy -c "$bbfw:RestoreSBL1-Version" BuildManifest.plist)
+            sbl1=$($PlistBuddy -c "$bbfw:SBL1-Version" BuildManifest.plist)
+            path=$($PlistBuddy -c "$bbfw:Info:Path" BuildManifest.plist | tr -d '"')
             rsb_latest="-1542379296"
             sbl_latest="-1543427872"
             ipsw_bbdigest TSVi7eYY4FiAzXynDVik6TY2S1c= APPS-DownloadDigest
@@ -4390,15 +4360,13 @@ ipsw_bbreplace() {
         ;;
     esac
 
-    for i in "${ind[@]}"; do
-        log "Replacing ${rsb1[$i]} with $rsb_latest"
-        log "Replacing ${sbl1[$i]} with $sbl_latest"
-        log "Replacing ${path[$i]} with Firmware/$device_use_bb"
-        sed -e "s,${rsb1[$i]},$rsb_latest," \
-            -e "s,${sbl1[$i]},$sbl_latest," \
-            -e "s,${path[$i]},Firmware/$device_use_bb," BuildManifest.plist > tmp.plist
-        mv tmp.plist BuildManifest.plist
-    done
+    log "Replacing $rsb1 with $rsb_latest"
+    log "Replacing $sbl1 with $sbl_latest"
+    log "Replacing $path with Firmware/$device_use_bb"
+    sed -e "s,$rsb1,$rsb_latest," \
+        -e "s,$sbl1,$sbl_latest," \
+        -e "s,$path,Firmware/$device_use_bb," BuildManifest.plist > tmp.plist
+    mv tmp.plist BuildManifest.plist
 
     zip -r0 temp.ipsw Firmware/$device_use_bb BuildManifest.plist
 }
@@ -5172,8 +5140,7 @@ ipsw_prepare_multipatch() {
             ' BuildManifest.plist > BuildManifest.tmp
             mv BuildManifest.tmp BuildManifest.plist
         fi
-        if [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_vers != "$device_latest_vers" ]] ||
-           [[ $device_type == "iPhone5,"* && $device_target_vers == "$device_latest_vers" ]]; then
+        if [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_vers != "$device_latest_vers" ]]; then
             ipsw_bbreplace exist
         else
             zip -r0 temp.ipsw BuildManifest.plist
@@ -8258,24 +8225,16 @@ menu_print_info() {
     if [[ $device_proc != 1 ]] && (( device_proc < 7 )); then
         case $device_proc in
             [56] )
-                if [[ $device_unsignedbb == 1 ]]; then
-                    warn "Latest baseband firmware is currently unsigned for your device. It is not recommended to restore until further notice."
-                    print "* For more details about this issue, see issue #1097: https://github.com/LukeZGD/Legacy-iOS-Kit/issues/1097"
-                elif [[ $device_unsignedbb == 2 ]]; then
-                    warn "Latest baseband firmware is currently unsigned for your device. All restores require kDFU/pwned DFU mode."
-                    print "* For more details about this issue, see issue #1097: https://github.com/LukeZGD/Legacy-iOS-Kit/issues/1097"
-                else
-                    if [[ $device_imei == "9900"* ]]; then
-                        warn "Your device's IMEI starts with 9900. These devices are affected by an activation issue."
-                    elif [[ $device_9900candidate == 1 && $device_mode == "Normal" && -n $device_imei ]]; then
-                        print "* Your device's IMEI does not start with 9900. Your device should be safe from the activation issue."
-                    elif [[ $device_9900candidate == 1 && $device_mode != "Normal" ]]; then
-                        warn "Your device is possibly affected by an activation issue. Please check your device's IMEI."
-                        print "* If it starts with 9900, enable Activation Records stitching in Misc Utilities"
-                    elif [[ $device_type == "iPad3,3" ]]; then
-                        warn "Your device is an iPad3,3. These devices are affected by an activation issue."
-                        [[ $device_unactivated != 2 ]] && print "* If you haven't already, dump activation by selecting Activation Records in Misc Utilities"
-                    fi
+                if [[ $device_imei == "9900"* ]]; then
+                    warn "Your device's IMEI starts with 9900. These devices are affected by an activation issue."
+                elif [[ $device_9900candidate == 1 && $device_mode == "Normal" && -n $device_imei ]]; then
+                    print "* Your device's IMEI does not start with 9900. Your device should be safe from the activation issue."
+                elif [[ $device_9900candidate == 1 && $device_mode != "Normal" ]]; then
+                    warn "Your device is possibly affected by an activation issue. Please check your device's IMEI."
+                    print "* If it starts with 9900, enable Activation Records stitching in Misc Utilities"
+                elif [[ $device_type == "iPad3,3" ]]; then
+                    warn "Your device is an iPad3,3. These devices are affected by an activation issue."
+                    [[ $device_unactivated != 2 ]] && print "* If you haven't already, dump activation by selecting Activation Records in Misc Utilities"
                 fi
             ;;
         esac
