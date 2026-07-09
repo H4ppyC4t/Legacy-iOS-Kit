@@ -2833,7 +2833,7 @@ ipsw_preference_set() {
         ipsw_gasgauge_patch=1
     fi
     case $device_type in
-        iPad2,[367] | iPhone5,[234] ) ipsw_gasgauge_patch=1;;
+        iPad2,[367] | iPhone5,[1234] ) ipsw_gasgauge_patch=1;;
     esac
     if [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
           $device_proc == 6 && $target_vers_maj == 10 ]]; then
@@ -2875,7 +2875,7 @@ ipsw_preference_set() {
     # ipsw_nskip being 1 means that it will always create/use a custom ipsw.
     # useful for disabling baseband update, or in the case of macos arm64, not having to use futurerestore for 32-bit.
     case $device_type in
-        iPad[23],[23] | iPad2,[67] | iPhone5,[234] | "$device_disable_bbupdate" ) ipsw_nskip=1;;
+        iPad[23],[23] | iPad2,[67] | iPhone5,[1234] | "$device_disable_bbupdate" ) ipsw_nskip=1;;
     esac
     if [[ $ipsw_gasgauge_patch != 1 && $ipsw_jailbreak != 1 && $device_target_vers == "$device_latest_vers" ]]; then
         ipsw_nskip=
@@ -4285,8 +4285,7 @@ ipsw_bbreplace() {
     local sbl_latest
     local loc_sub="Manifest:BasebandFirmware"
     local ubid
-    if [[ $device_type == "iPad2,6" || $device_type == "iPad2,7" || $device_type == "iPhone5,2" ||
-          $device_type == "iPhone5,3" || $device_type == "iPhone5,4" ]] &&
+    if [[ $device_type == "iPad2,6" || $device_type == "iPad2,7" || $device_type == "iPhone5,"* ]] &&
        [[ $device_target_vers == "$device_latest_vers" ]]; then
         :
     elif [[ $device_use_bb == 0 || $device_target_vers == "$device_latest_vers" ||
@@ -5160,10 +5159,8 @@ ipsw_prepare_multipatch() {
             ' BuildManifest.plist > BuildManifest.tmp
             mv BuildManifest.tmp BuildManifest.plist
         fi
-        if [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_vers != "$device_latest_vers" ]]; then
-            ipsw_bbreplace exist
-        elif [[ $device_type == "iPhone5,2" || $device_type == "iPhone5,3" || $device_type == "iPhone5,4" ]] &&
-             [[ $device_target_vers == "$device_latest_vers" ]]; then
+        if [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_vers != "$device_latest_vers" ]] ||
+           [[ $device_type == "iPhone5,"* && $device_target_vers == "$device_latest_vers" ]]; then
             ipsw_bbreplace exist
         else
             zip -r0 temp.ipsw BuildManifest.plist
