@@ -2833,7 +2833,7 @@ ipsw_preference_set() {
         ipsw_gasgauge_patch=1
     fi
     case $device_type in
-        iPad2,[36] | iPhone5,[34] ) ipsw_gasgauge_patch=1;;
+        iPad2,[367] | iPhone5,[234] ) ipsw_gasgauge_patch=1;;
     esac
     if [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
           $device_proc == 6 && $target_vers_maj == 10 ]]; then
@@ -2875,7 +2875,7 @@ ipsw_preference_set() {
     # ipsw_nskip being 1 means that it will always create/use a custom ipsw.
     # useful for disabling baseband update, or in the case of macos arm64, not having to use futurerestore for 32-bit.
     case $device_type in
-        iPad[23],[23] | iPad2,6 | iPhone5,[34] | "$device_disable_bbupdate" ) ipsw_nskip=1;;
+        iPad[23],[23] | iPad2,[67] | iPhone5,[234] | "$device_disable_bbupdate" ) ipsw_nskip=1;;
     esac
     if [[ $ipsw_gasgauge_patch != 1 && $ipsw_jailbreak != 1 && $device_target_vers == "$device_latest_vers" ]]; then
         ipsw_nskip=
@@ -4208,38 +4208,75 @@ ipsw_prepare_32bit() {
     mv temp.ipsw "$ipsw_custom.ipsw"
 }
 
+replace_plist_data() {
+    local key="$1"
+    local value="$2"
+
+    awk -v key="$key" -v value="$value" '
+    $0 ~ "<key>" key "</key>" {
+        print
+        getline
+        if ($0 ~ /<data>/) {
+            print
+            print "\t\t\t\t\t" value
+
+            while (getline) {
+                if ($0 ~ /<\/data>/) {
+                    print
+                    break
+                }
+            }
+            next
+        }
+    }
+    { print }
+    ' BuildManifest.plist > tmp.plist &&
+    mv tmp.plist BuildManifest.plist
+}
+
 ipsw_bbdigest() {
     local loc="BuildIdentities:0:"
+    local loc_sub=
     if [[ $2 != "UniqueBuildID" ]]; then
-        loc+="Manifest:BasebandFirmware:"
+        loc_sub="Manifest:BasebandFirmware:"
     fi
-    loc+="$2"
+    loc_sub+="$2"
+    loc+="$loc_sub"
+
     local out="$1"
     log "Replacing $2"
+
+    local ind=(0)
+    if [[ $device_proc == 6 && $target_vers_maj == 10 ]]; then
+        ind+=(2 4)
+        [[ $device_type == "iPhone5,"* ]] && ind+=(6)
+    fi
+
     if [[ $platform == "macos" ]]; then
         echo $out | base64 --decode > t
-        $PlistBuddy -c "Import $loc t" BuildManifest.plist
+        for i in "${ind[@]}"; do
+            $PlistBuddy -c "Import BuildIdentities:$i:$loc_sub t" BuildManifest.plist
+        done
         rm t
         return
     fi
-    in=$($PlistBuddy -c "Print $loc" BuildManifest.plist | tr -d "<>" | xxd -r -p | base64)
-    in="${in}<"
-    in="$(echo "$in" | sed -e 's,AAAAAAAAAAAAAAAAAAAAAAA<,==,' \
-                           -e 's,AAAAAAAAAAAAA<,=,' \
-                           -e 's,AAAAAAAAA<,=,')"
-    case $2 in
-        *"PartialDigest" )
-            in="${in%????????????}"
-            in=$(grep -m1 "$in" BuildManifest.plist)
-            sed "s,$in,replace," BuildManifest.plist | \
-            awk 'f{f=0; next} /replace/{f=1} 1' | \
-            awk '/replace$/{printf "%s", $0; next} 1' > tmp.plist
-            in="replace"
-        ;;
-        * ) mv BuildManifest.plist tmp.plist;;
-    esac
-    sed "s,$in,$out," tmp.plist > BuildManifest.plist
-    rm tmp.plist
+
+    for i in "${ind[@]}"; do
+        in=$($PlistBuddy -c "Print BuildIdentities:$i:$loc_sub" BuildManifest.plist | tr -d "<>" | xxd -r -p | base64)
+        in="${in}<"
+        in="$(echo "$in" | sed -e 's,AAAAAAAAAAAAAAAAAAAAAAA<,==,' \
+                               -e 's,AAAAAAAAAAAAA<,=,' \
+                               -e 's,AAAAAAAAA<,=,')"
+        case $2 in
+            *"PartialDigest" )
+                replace_plist_data "$2" "$out"
+                return
+            ;;
+            * ) mv BuildManifest.plist tmp.plist;;
+        esac
+        sed "s,$in,$out," tmp.plist > BuildManifest.plist
+        rm tmp.plist
+    done
 }
 
 ipsw_bbreplace() {
@@ -4250,7 +4287,9 @@ ipsw_bbreplace() {
     local sbl_latest
     local bbfw="Print BuildIdentities:0:Manifest:BasebandFirmware"
     local ubid
-    if [[ $device_type == "iPad2,6" || $device_type == "iPhone5,3" || $device_type == "iPhone5,4" ]] && [[ $device_target_vers == "$device_latest_vers" ]]; then
+    if [[ $device_type == "iPad2,6" || $device_type == "iPad2,7" || $device_type == "iPhone5,2" ||
+          $device_type == "iPhone5,3" || $device_type == "iPhone5,4" ]] &&
+       [[ $device_target_vers == "$device_latest_vers" ]]; then
         :
     elif [[ $device_use_bb == 0 || $device_target_vers == "$device_latest_vers" ||
             $device_type == "$device_disable_bbupdate" ]] || (( device_proc < 5 )); then
@@ -4268,13 +4307,13 @@ ipsw_bbreplace() {
     case $device_type in
         iPhone4,1 ) ubid="d9Xbp0xyiFOxDvUcKMsoNjIvhwQ=";;
         iPhone5,1 ) ubid="IcrFKRzWDvccKDfkfMNPOPYHEV0=";;
-        iPhone5,2 ) ubid="lnU0rtBUK6gCyXhEtHuwbEz/IKY=";;
+        iPhone5,2 ) ubid="IcrFKRzWDvccKDfkfMNPOPYHEV0=";; # iPhone5,1 ubid. orig: lnU0rtBUK6gCyXhEtHuwbEz/IKY=
         iPhone5,3 ) ubid="lnoGRL1B+Be2mF6Y6FNio8TPxM8=";; # iPhone6,1 ubid. orig: 5MDMapCrTG5J33jbtOLgWNLwzKs=
         iPhone5,4 ) ubid="EHCDmDBeezNwTZsyiWYWQCllnz4=";; # iPhone6,2 ubid. orig: Z4ST0TczwAhpfluQFQNBg7Y3BVE=
-        iPad2,6 ) ubid="z/vJsvnUovZ+RGyXKSFB6DOjt1k=";; # iPad2,7 ubid. orig: L73HfN42pH7qAzlWmsEuIZZg2oE=
-        iPad2,7 ) ubid="z/vJsvnUovZ+RGyXKSFB6DOjt1k=";;
-        iPad3,5 ) ubid="849RPGQ9kNXGMztIQBhVoU/l5lM=";;
-        iPad3,6 ) ubid="cO+N+Eo8ynFf+0rnsIWIQHTo6rg=";;
+        iPad2,6   ) ubid="IcrFKRzWDvccKDfkfMNPOPYHEV0=";; # iPhone5,1 ubid. orig: L73HfN42pH7qAzlWmsEuIZZg2oE=
+        iPad2,7   ) ubid="IcrFKRzWDvccKDfkfMNPOPYHEV0=";; # iPhone5,1 ubid. orig: z/vJsvnUovZ+RGyXKSFB6DOjt1k=
+        iPad3,5   ) ubid="849RPGQ9kNXGMztIQBhVoU/l5lM=";;
+        iPad3,6   ) ubid="cO+N+Eo8ynFf+0rnsIWIQHTo6rg=";;
     esac
     ipsw_bbdigest $ubid UniqueBuildID
 
@@ -5113,7 +5152,8 @@ ipsw_prepare_multipatch() {
         fi
         if [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_vers != "$device_latest_vers" ]]; then
             ipsw_bbreplace exist
-        elif [[ $device_type == "iPhone5,3" || $device_type == "iPhone5,4" ]] && [[ $device_target_vers == "$device_latest_vers" ]]; then
+        elif [[ $device_type == "iPhone5,2" || $device_type == "iPhone5,3" || $device_type == "iPhone5,4" ]] &&
+             [[ $device_target_vers == "$device_latest_vers" ]]; then
             ipsw_bbreplace exist
         else
             zip -r0 temp.ipsw BuildManifest.plist
