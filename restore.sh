@@ -1135,6 +1135,10 @@ device_manufacturing() {
         case $device_type in
             iPhone4,1 | iPhone5,2 | iPad2,7 | iPad3,[26] ) device_9900candidate=1;;
         esac
+        case $device_type in
+            iPhone4,1 | iPhone5,* | iPad2,[67] | iPad3,[23] ) device_unsignedbb=1;;
+            iPad2,3 | iPad3,[23] ) device_unsignedbb=2;;
+        esac
         if [[ $device_type == "DFU" ]]; then
             print "* Cannot check for manufacturing date in DFU mode"
             return
@@ -2833,7 +2837,7 @@ ipsw_preference_set() {
         ipsw_gasgauge_patch=1
     fi
     case $device_type in
-        iPad2,[367] | iPhone5,[1234] ) ipsw_gasgauge_patch=1;;
+        iPad2,[367] | iPad3,[23] | iPhone4,1 | iPhone5,[1234] ) ipsw_gasgauge_patch=1;;
     esac
     if [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
           $device_proc == 6 && $target_vers_maj == 10 ]]; then
@@ -2875,7 +2879,7 @@ ipsw_preference_set() {
     # ipsw_nskip being 1 means that it will always create/use a custom ipsw.
     # useful for disabling baseband update, or in the case of macos arm64, not having to use futurerestore for 32-bit.
     case $device_type in
-        iPad[23],[23] | iPad2,[67] | iPhone5,[1234] | "$device_disable_bbupdate" ) ipsw_nskip=1;;
+        iPad[23],[23] | iPad2,[67] | iPhone4,1 | iPhone5,[1234] | "$device_disable_bbupdate" ) ipsw_nskip=1;;
     esac
     if [[ $ipsw_gasgauge_patch != 1 && $ipsw_jailbreak != 1 && $device_target_vers == "$device_latest_vers" ]]; then
         ipsw_nskip=
@@ -3047,12 +3051,13 @@ shsh_save() {
     local shsh_check
     local buildmanifest="../resources/manifest/BuildManifest_${device_type}_${version}.plist"
     local ExtraArgs=
+    local bbcheck
 
-    if [[ $1 == "apnonce" ]]; then
-        apnonce=$2
-    elif [[ $1 == "version" ]]; then
-        version=$2
-    fi
+    case $1 in
+        "apnonce" ) apnonce=$2;;
+        "version" ) version=$2;;
+        "bbcheck" ) bbcheck=1;;
+    esac
 
     if [[ $version == "$device_latest_vers" || $version == "4.1" ]]; then
         if [[ $version != "4.1" ]]; then
@@ -3073,14 +3078,17 @@ shsh_save() {
     fi
     shsh_check=${device_ecid}_${device_type}_${device_model}ap_${version}-${build_id}_${apnonce}*.shsh*
 
-    if [[ $(ls ../saved/shsh/$shsh_check 2>/dev/null) && -z $apnonce ]]; then
+    if [[ $(ls ../saved/shsh/$shsh_check 2>/dev/null) && -z $apnonce && $bbcheck != 1 ]]; then
         shsh_path="$(ls ../saved/shsh/$shsh_check)"
         log "Found existing saved $version blobs: $shsh_path"
         return
     fi
     rm -f *.shsh*
 
-    ExtraArgs="-d $device_type -i $version -e $device_ecid -m $buildmanifest -o -s -B ${device_model}ap -b "
+    ExtraArgs="-d $device_type -i $version -e $device_ecid -m $buildmanifest -o -s -B ${device_model}ap "
+    if [[ $bbcheck != 1 ]]; then
+        ExtraArgs+="-b "
+    fi
     if [[ -n $apnonce ]]; then
         ExtraArgs+="--apnonce $apnonce"
     else
@@ -3088,8 +3096,12 @@ shsh_save() {
     fi
     log "Running tsschecker with command: $tsschecker $ExtraArgs"
     $tsschecker $ExtraArgs
+
     shsh_path="$(ls $shsh_check)"
-    if [[ -z "$shsh_path" ]]; then
+    if [[ -z "$shsh_path" && $bbcheck == 1 ]]; then
+        warn "Saving $version blobs failed."
+        return
+    elif [[ -z "$shsh_path" ]]; then
         error "Saving $version blobs failed. Please run the script again"
     fi
     if [[ -z $apnonce ]]; then
@@ -4285,7 +4297,8 @@ ipsw_bbreplace() {
     local sbl_latest
     local loc_sub="Manifest:BasebandFirmware"
     local ubid
-    if [[ $device_type == "iPad2,6" || $device_type == "iPad2,7" || $device_type == "iPhone5,"* ]] &&
+    if [[ $device_type == "iPad2,6" || $device_type == "iPad2,7" ||
+          $device_type == "iPhone4,1" || $device_type == "iPhone5,"* ]] &&
        [[ $device_target_vers == "$device_latest_vers" ]]; then
         :
     elif [[ $device_use_bb == 0 || $device_target_vers == "$device_latest_vers" ||
@@ -8245,16 +8258,24 @@ menu_print_info() {
     if [[ $device_proc != 1 ]] && (( device_proc < 7 )); then
         case $device_proc in
             [56] )
-                if [[ $device_imei == "9900"* ]]; then
-                    warn "Your device's IMEI starts with 9900. These devices are affected by an activation issue."
-                elif [[ $device_9900candidate == 1 && $device_mode == "Normal" && -n $device_imei ]]; then
-                    print "* Your device's IMEI does not start with 9900. Your device should be safe from the activation issue."
-                elif [[ $device_9900candidate == 1 && $device_mode != "Normal" ]]; then
-                    warn "Your device is possibly affected by an activation issue. Please check your device's IMEI."
-                    print "* If it starts with 9900, enable Activation Records stitching in Misc Utilities"
-                elif [[ $device_type == "iPad3,3" ]]; then
-                    warn "Your device is an iPad3,3. These devices are affected by an activation issue."
-                    [[ $device_unactivated != 2 ]] && print "* If you haven't already, dump activation by selecting Activation Records in Misc Utilities"
+                if [[ $device_unsignedbb == 1 ]]; then
+                    warn "Latest baseband firmware is currently unsigned for your device. It is not recommended to restore until further notice."
+                    print "* For more details about this issue, see issue #1097: https://github.com/LukeZGD/Legacy-iOS-Kit/issues/1097"
+                elif [[ $device_unsignedbb == 2 ]]; then
+                    warn "Latest baseband firmware is currently unsigned for your device. All restores require kDFU/pwned DFU mode."
+                    print "* For more details about this issue, see issue #1097: https://github.com/LukeZGD/Legacy-iOS-Kit/issues/1097"
+                else
+                    if [[ $device_imei == "9900"* ]]; then
+                        warn "Your device's IMEI starts with 9900. These devices are affected by an activation issue."
+                    elif [[ $device_9900candidate == 1 && $device_mode == "Normal" && -n $device_imei ]]; then
+                        print "* Your device's IMEI does not start with 9900. Your device should be safe from the activation issue."
+                    elif [[ $device_9900candidate == 1 && $device_mode != "Normal" ]]; then
+                        warn "Your device is possibly affected by an activation issue. Please check your device's IMEI."
+                        print "* If it starts with 9900, enable Activation Records stitching in Misc Utilities"
+                    elif [[ $device_type == "iPad3,3" ]]; then
+                        warn "Your device is an iPad3,3. These devices are affected by an activation issue."
+                        [[ $device_unactivated != 2 ]] && print "* If you haven't already, dump activation by selecting Activation Records in Misc Utilities"
+                    fi
                 fi
             ;;
         esac
@@ -8815,7 +8836,7 @@ menu_shsh() {
     device_target_vers=
     device_target_build=
     while [[ -z "$mode" && -z "$back" ]]; do
-        menu_items=("Latest iOS ($device_latest_vers)")
+        menu_items=("Latest iOS ($device_latest_vers)" "Latest iOS ($device_latest_vers) (Baseband Check)")
         case $device_type in
             iPad4,[12345] | iPhone6,[12] )
                 menu_items+=("iOS 10.3.3");;
@@ -8871,6 +8892,7 @@ menu_shsh() {
         target_vers_maj=$(echo "$device_target_vers" | cut -d. -f1)
         target_vers_min=$(echo "$device_target_vers" | cut -d. -f2)
         case $selected in
+            *"Baseband Check"* ) shsh_save bbcheck; pause;;
             *"iOS"* ) shsh_save; pause;;
             "Onboard Blobs" ) menu_shsh_onboard;;
             "Onboard Blobs (Raw Dump)" )
