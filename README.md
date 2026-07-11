@@ -96,6 +96,8 @@
     - iPad Pro 9.7/12.9 1st gen
 - Restoring with **powdersn0w** is supported on the following devices and target version range:
     - See the ["powdersn0w" wiki page](https://github.com/LukeZGD/Legacy-iOS-Kit/wiki/powdersn0w)
+- Restoring with **DRA v6** is supported on the following devices and target version range:
+    - See the ["DRA v6" wiki page](https://github.com/LukeZGD/Legacy-iOS-Kit/wiki/DRA-v6)
 - Restoring **tethered** to any version is supported on the following devices:
     - iPhone 4 (3,2 and 3,3), 4S, 5, 5C
     - iPad 2, 3, 4, mini 1
@@ -140,6 +142,7 @@
         - iPad 3 7.1.x
         - iPad 4 7.0.x and 7.1.x
         - iPod touch 5 7.0.x
+- [De-Rebus-Antiquis-v6](https://github.com/synackuk/De-Rebus-Antiquis-v6) - synackuk
 - [ipwndfu](https://github.com/LukeZGD/ipwndfu) - axi0mX; LukeZGD fork
 - [iPwnder32](https://github.com/dora2ios/iPwnder32) - dora2ios
 - [ipwnder_lite](https://github.com/LukeZGD/ipwnder_lite/tree/old) - dora2ios; LukeZGD fork

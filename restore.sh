@@ -1724,7 +1724,7 @@ device_get_info() {
 
     # powdersn0w device and base version support
     case $device_type in
-        iPhone[345],* | iPad1,1 | iPad2,[4567] | iPad3,* | iPod[35],1 ) device_canpowder=1;;
+        iPhone[345],* | iPad1,1 | iPad2,[4567] | iPad3,* | iPod[35],1 ) device_can_powder=1;;
     esac
     check_vers="7.1"
     case $device_type in
@@ -1735,6 +1735,11 @@ device_get_info() {
         check_vers="$device_latest_vers"
         base_vers="$device_latest_vers"
     fi
+
+    # dra v6 support
+    case $device_type in
+        iPhone4,1 | iPod4,1 ) device_can_drav6=1;;
+    esac
 }
 
 device_find_mode() {
@@ -3070,6 +3075,8 @@ shsh_save() {
             fi
             mv BuildManifest.plist $buildmanifest
         fi
+    elif [[ $device_base_drav6 == 1 && $device_proc == 5 ]]; then
+        buildmanifest="../resources/manifest/BuildManifest_${device_type}_${version}.plist"
     fi
     shsh_check=${device_ecid}_${device_type}_${device_model}ap_${version}-${build_id}_${apnonce}*.shsh*
 
@@ -3299,14 +3306,11 @@ ipsw_prepare_rebootsh() {
     log "Generating reboot.sh"
     echo '#!/bin/bash' | tee reboot.sh
     echo "mount_hfs /dev/disk0s1s1 /mnt1; mount_hfs /dev/disk0s1s2 /mnt2" | tee -a reboot.sh
-    [[ $1 != "aquila2" ]] && echo "nvram -d boot-partition; nvram -d boot-ramdisk" | tee -a reboot.sh
-    if [[ $1 == "aquila"* ]]; then
+    if [[ $1 == "aquila" ]]; then
         echo "mv /mnt1/System/Library/LaunchDaemons/com.apple.mDNSResponder.plist_ /mnt1/Library/LaunchDaemons/com.apple.mDNSResponder.plist" | tee -a reboot.sh
         echo "mv /mnt1/Library/LaunchDaemons/com.apple.sandboxd.plist /mnt1/System/Library/LaunchDaemons/" | tee -a reboot.sh
         echo "mv /mnt1/Library/LaunchDaemons/com.saurik.Cydia.Startup.plist /mnt1/System/Library/LaunchDaemons/" | tee -a reboot.sh
-        local crash=
-        [[ $1 == "aquila" ]] && crash+="_o"
-        echo "mv /mnt1/usr/libexec/CrashHousekeeping$crash /mnt1/usr/libexec/CrashHousekeeping.backup" | tee -a reboot.sh
+        echo "mv /mnt1/usr/libexec/CrashHousekeeping_o /mnt1/usr/libexec/CrashHousekeeping.backup" | tee -a reboot.sh
         echo "ln -sf /aquila /mnt1/usr/libexec/CrashHousekeeping" | tee -a reboot.sh
         ipsw_prepare_openssh_plist
         echo "/sbin/reboot_" | tee -a reboot.sh
@@ -3898,11 +3902,13 @@ ipsw_prepare_bundle() {
         esac
         case $device_base_build in
             11[AB]* ) base_build="11B554a";;
+            10*     ) base_build="$device_base_build";;
             9B*     ) base_build="9B206";;
             9A*     ) base_build="9A405";;
         esac
+        device_powder_exploit="src/target/$hw/$base_build/exploit"
         echo "<key>RamdiskExploit</key><dict>" >> $NewPlist
-        echo "<key>exploit</key><string>src/target/$hw/$base_build/exploit</string>" >> $NewPlist
+        echo "<key>exploit</key><string>$device_powder_exploit</string>" >> $NewPlist
         echo "<key>inject</key><string>partition</string></dict>" >> $NewPlist
     elif [[ $1 == "target" ]]; then
         echo "<key>FilesystemPackage</key><dict><key>bootstrap</key><string>freeze.tar</string>" >> $NewPlist
@@ -4395,10 +4401,15 @@ patch_iboot() {
     "$dir/iBoot32Patcher" iBoot.dec iBoot.pwned $rsa "$@"
     "$dir/xpwntool" iBoot.pwned iBoot -t iBoot.orig
     if [[ $device_type == "iPad1,1" || $device_type == "iPhone5,"* ]]; then
+        # ibec
         echo "0000010: 6365" | xxd -r - iBoot
         echo "0000020: 6365" | xxd -r - iBoot
-        return
+    elif [[ $device_base_drav6 == 1 ]]; then
+        # ibox
+        echo "0000010: 786F" | xxd -r - iBoot
+        echo "0000020: 786F" | xxd -r - iBoot
     elif [[ $device_type != "iPhone2,1" ]]; then
+        # ibob
         echo "0000010: 626F" | xxd -r - iBoot
         echo "0000020: 626F" | xxd -r - iBoot
     fi
@@ -4696,7 +4707,8 @@ ipsw_prepare_specialios7() {
                 cp $name $all_flash2/
                 "$dir/xpwntool" $name $ipsw_custom/Downgrade/RestoreLogo -iv $iv -k $key -decrypt
             ;;
-            "iBSS" | "iBEC" | "RestoreRamdisk" )
+            "iBSS" | "iBEC" | "iBoot" | "RestoreRamdisk" )
+                [[ $getcomp == "iBoot" ]] && cp $name $all_flash2/
                 mv $name $getcomp.orig
                 "$dir/xpwntool" $getcomp.orig $getcomp.dec -iv $iv -k $key
             ;;
@@ -4704,19 +4716,29 @@ ipsw_prepare_specialios7() {
         esac
     done
 
+    log "manifest"
+    file_extract_from_archive "$ipsw_base_path.ipsw" $all_flash/manifest
+    mv manifest $all_flash2/
+
     log "Patch iBSS"
     "$dir/iBoot32Patcher" iBSS.dec iBSS.patched --rsa
     "$dir/xpwntool" iBSS.patched $ipsw_custom/Firmware/dfu/iBSS.${device_model}ap.RELEASE.dfu -t iBSS.orig
 
-    log "Patch iBEC"
     if [[ $device_type == "iPad1,1" ]]; then
+        log "Patch iBEC"
         $bspatch iBEC.dec iBEC.patched $patches/iBEC.k48ap.RELEASE.patch
         "$dir/xpwntool" iBEC.patched $ipsw_custom/Firmware/dfu/iBEC.${device_model}ap.RELEASE.dfu -t iBEC.orig
     else # iPod4,1
+        log "Patch restore iBEC"
         "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "rd=md0 -v amfi=0xff cs_enforcement_disable=1"
-        "$dir/xpwntool" iBEC.patched $ipsw_custom/Firmware/dfu/iBEC.${device_model}ap.RELEASE.dfu -t iBEC.orig # restore ibec
+        "$dir/img3maker" -f iBEC.patched -o $ipsw_custom/Firmware/dfu/iBEC.${device_model}ap.RELEASE.dfu -t ibec
+        log "Patch tether boot iBEC"
         "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "-v amfi=0xff cs_enforcement_disable=1"
-        "$dir/xpwntool" iBEC.patched $saves/pwnediBEC.dfu -t iBEC.orig # boot ibec
+        "$dir/img3maker" -f iBEC.patched -o $saves/pwnediBEC.dfu -t ibec
+        log "Patch iBoot"
+        "$dir/iBoot32Patcher" iBoot.dec iBoot.patched --rsa --debug --boot-partition --boot-ramdisk -b "-v amfi=0xff cs_enforcement_disable=1"
+        "$dir/img3maker" -f iBoot.patched -o $all_flash2/iBoot2.img3 -t ibox
+        echo "iBoot2.img3" >> $all_flash2/manifest
     fi
 
     log "Base manifest plist"
@@ -4736,7 +4758,7 @@ ipsw_prepare_specialios7() {
     else # iPod4,1
         mv RestoreRamdisk.dec ramdisk.dec
     fi
-    "$dir/hfsplus" ramdisk.dec grow 13000000
+    "$dir/hfsplus" ramdisk.dec grow 18000000
 
     log "Patch ASR"
     ipsw_patch_file ramdisk.dec usr/sbin asr $patches/asr.${device_model}.patch
@@ -4753,13 +4775,16 @@ ipsw_prepare_specialios7() {
         "$dir/hfsplus" ramdisk.dec chown 0:0 private/etc/rc.boot
         "$dir/hfsplus" ramdisk.dec add $sundance/exploit/exploit-k48.dmg exploit.dmg
     elif [[ $ipsw_jailbreak == 1 ]]; then # touch 4 only
-        ipsw_prepare_rebootsh aquila2
-        log "Jailbreak stuff in ramdisk"
-        "$dir/hfsplus" ramdisk.dec untar $jelbrek/daibutsu/bin.tar
+        local exploit="src/target/n81/10B500/exploit"
+        ipsw_prepare_partition_script
+        log "Adding exploit and partition stuff"
+        cp -R ../resources/firmware/src .
+        "$dir/hfsplus" ramdisk.dec untar src/bin.tar
         "$dir/hfsplus" ramdisk.dec mv sbin/reboot sbin/reboot_
-        "$dir/hfsplus" ramdisk.dec add reboot.sh sbin/reboot
+        "$dir/hfsplus" ramdisk.dec add partition sbin/reboot
         "$dir/hfsplus" ramdisk.dec chmod 755 sbin/reboot
         "$dir/hfsplus" ramdisk.dec chown 0:0 sbin/reboot
+        "$dir/hfsplus" ramdisk.dec add $exploit exploit
     fi
 
     log "Repack Restore Ramdisk"
@@ -5036,6 +5061,13 @@ ipsw_prepare_partition_script() {
     fi
 }
 
+ipsw_prepare_reboot4() {
+    # prepare reboot4 binary: copy over the exploit ramdisk to it
+    cp src/target/reboot4 partition
+    dd if=/dev/zero of=partition bs=1 seek=$((0x815C)) count=$((512*1024)) conv=notrunc status=none
+    dd if=$device_powder_exploit of=partition bs=1 seek=$((0x815C)) conv=notrunc status=none
+}
+
 ipsw_prepare_multipatch() {
     local vers
     local build
@@ -5256,7 +5288,8 @@ ipsw_prepare_multipatch() {
         cp -R ../resources/firmware/src .
         "$dir/hfsplus" RestoreRamdisk.dec untar src/bin4.tar
         "$dir/hfsplus" RestoreRamdisk.dec mv sbin/reboot sbin/reboot_
-        "$dir/hfsplus" RestoreRamdisk.dec add src/target/$device_model/reboot4 sbin/reboot
+        ipsw_prepare_reboot4
+        "$dir/hfsplus" RestoreRamdisk.dec add partition sbin/reboot
         "$dir/hfsplus" RestoreRamdisk.dec chmod 755 sbin/reboot
         "$dir/hfsplus" RestoreRamdisk.dec chown 0:0 sbin/reboot
     elif [[ $device_target_powder == 1 ]]; then
@@ -5467,7 +5500,7 @@ ipsw_prepare_ios4powder() {
     ipsw_prepare_bundle base
     ipsw_prepare_logos_convert
     cp -R ../resources/firmware/src .
-    mv src/target/$device_model/reboot4 partition
+    ipsw_prepare_reboot4
     rm src/bin.tar
     mv src/bin4.tar src/bin.tar
     ipsw_prepare_config false true
@@ -5600,7 +5633,7 @@ ipsw_prepare_powder() {
     if [[ $device_type == "iPhone5,3" || $device_type == "iPhone5,4" ]] && [[ $device_base_vers == "7.0"* ]]; then
         ipsw_powder_5c70=1
     fi
-    if [[ $device_type == "iPhone5"* && $ipsw_powder_5c70 != 1 ]]; then
+    if [[ $device_type == "iPhone5,"* && $ipsw_powder_5c70 != 1 ]]; then
         # do this stuff because these use ramdiskH (jump to /boot/iBEC) instead of ramdiskI (jump ibot to ibob)
         ipsw_powder_ramdiskH=1
         if [[ $device_target_vers == "9"* ]]; then
@@ -5645,7 +5678,7 @@ ipsw_prepare_powder() {
               "* You may try selecting N for memory option"
     fi
 
-    if [[ $device_type != "iPhone5"* && $device_type != "iPad1,1" ]] || [[ $ipsw_powder_5c70 == 1 ]]; then
+    if [[ $device_type != "iPhone5,"* && $device_type != "iPad1,1" ]] || [[ $ipsw_powder_5c70 == 1 ]]; then
         case $device_target_vers in
             [789]* ) :;;
             * )
@@ -6402,6 +6435,8 @@ restore_deviceprepare() {
                 shsh_save version $device_latest_vers
                 device_enter_mode pwnDFU
                 return
+            elif [[ $device_base_drav6 == 1 ]]; then
+                shsh_save version $device_base_vers
             elif [[ $device_target_other != 1 && $device_target_powder != 1 ]]; then
                 shsh_save
             fi
@@ -7698,7 +7733,7 @@ menu_ramdisk() {
         if (( device_proc >= 5 )); then
             menu_items+=("Erase All (iOS 9+)")
         fi
-        if [[ $device_canpowder == 1 ]]; then
+        if [[ $device_can_powder == 1 || $device_can_drav6 == 1 ]]; then
             menu_items+=("Disable/Enable Exploit")
         fi
         if (( device_proc >= 7 )) && [[ $device_proc != 10 ]]; then
@@ -8108,15 +8143,27 @@ shsh_convert_onboard() {
     local shsh="../saved/shsh/${device_ecid}-${device_type}_$(date +%Y-%m-%d-%H%M).shsh"
     if (( device_proc < 7 )); then
         shsh="../saved/shsh/${device_ecid}-${device_type}-${device_target_vers}-${device_target_build}.shsh"
-        # remove ibob for powdersn0w/dra downgraded devices. fixes unknown magic 69626f62
+        # remove ibob/ibox for powdersn0w/dra downgraded devices. fixes unknown magic 69626f62/78
         local blob=$(xxd -p dump.raw | tr -d '\n')
         local bobi="626f6269"
+        local xobi="786f6269"
         local blli="626c6c69"
+        local search=
+        local desc=
+
         if [[ $blob == *"$bobi"* ]]; then
-            log "Detected \"ibob\". Fixing... (This happens on DRA/powdersn0w downgraded devices)"
-            rm -f dump.raw
-            printf "%s" "${blob%"$bobi"*}${blli}${blob##*"$blli"}" | xxd -r -p > dump.raw
+            search=$bobi
+            desc="ibob"
+        elif [[ $blob == *"$xobi"* ]]; then
+            search=$xobi
+            desc="ibox"
         fi
+
+        if [[ -n $search ]]; then
+            log "Detected \"$desc\". Fixing... (This happens on DRA/powdersn0w downgraded devices)"
+            printf '%s' "${blob/"$search"/"$blli"}" | xxd -r -p > dump.raw
+        fi
+
         shsh_onboard_iboot="$(cat dump.raw | strings | grep iBoot | head -1)"
         log "Raw dump iBoot version: $shsh_onboard_iboot"
         if [[ $1 == "dump" ]]; then
@@ -9007,6 +9054,9 @@ menu_restore() {
             iPhone3,* | iPad1,1 | iPod3,1 )
                 menu_items+=("powdersn0w (any iOS)");;
         esac
+        if [[ $device_can_drav6 == 1 ]]; then
+            menu_items+=("DRA v6 (any iOS)")
+        fi
         if (( device_proc < 7 )) || [[ $platform == "linux" ]]; then
             menu_items+=("Latest iOS ($device_latest_vers)")
         fi
@@ -9015,7 +9065,7 @@ menu_restore() {
             iPod3,1 ) menu_items+=("6.0" "6.1.3" "6.1.6");;
             iPad1,1 ) menu_items+=("6.1.3" "7.1.2");;
         esac
-        if [[ $device_canpowder == 1 && $device_proc != 4 ]]; then
+        if [[ $device_can_powder == 1 && $device_proc != 4 ]]; then
             menu_items+=("Other (powdersn0w $base_vers blobs)")
         fi
         if [[ $device_proc != 1 && $device_type != "iPod2,1" ]] && (( device_proc <= 10 )); then
@@ -9052,7 +9102,6 @@ menu_restore() {
         case $device_type in
             iPad2,4      ) print "* iPad2,4 does not support 6.1.3 downgrades, you need blobs for 6.1.3 or 7.1.x"; echo;;
             iPhone5,[34] ) print "* iPhone 5C does not support 8.4.1 downgrades, you need blobs for 8.4.1 or 7.x"; echo;;
-            iPod4,1      ) print "* iPod touch 4 does not support any untethered downgrades without blobs"; echo;;
         esac
         if [[ $platform == "macos" ]] && (( device_proc >= 7 )); then
             print "* Note: Restoring to latest iOS for 64-bit devices is not supported on macOS, use iTunes/Finder instead for that"
@@ -9359,6 +9408,19 @@ menu_ipsw() {
                 device_base_vers="$device_latest_vers"
                 device_base_build="$device_latest_build"
             fi
+        elif [[ $1 == *"DRA v6"* ]]; then
+            device_target_powder=1
+            device_base_drav6=1
+            case $device_type in
+                iPhone2,1 | iPod4,1 )
+                    device_base_vers="$device_latest_vers"
+                    device_base_build="$device_latest_build"
+                ;;
+                iPad2,[123] | iPhone4,1 )
+                    device_base_vers="6.1.3"
+                    device_base_build="10B329"
+                ;;
+            esac
         elif [[ $1 == *"Tethered"* ]]; then
             device_target_tethered=1
         elif [[ -n $device_target_vers && -e "../$newpath.ipsw" ]]; then
@@ -9372,7 +9434,7 @@ menu_ipsw() {
         menu_print_info
         print "* Only select unmodified IPSW for the selection. Do not select custom IPSWs"
         echo
-        if [[ $1 == *"powdersn0w"* ]]; then
+        if [[ $1 == *"powdersn0w"* || $1 == *"DRA v6"* ]]; then
             menu_items+=("Select Base IPSW")
             if [[ $device_proc == 4 ]]; then
                 menu_items+=("Download Base IPSW")
@@ -9420,7 +9482,7 @@ menu_ipsw() {
                 print "* Select Base IPSW $text2 to continue"
                 echo
             fi
-            if [[ $device_proc == 4 ]]; then
+            if [[ $device_proc == 4 || $device_can_drav6 == 1 ]]; then
                 shsh_path=1
             else
                 if [[ -n $shsh_path ]]; then
@@ -9664,6 +9726,7 @@ menu_ipsw() {
                 device_target_powder=
                 device_target_tethered=
                 device_bootargs=
+                device_base_drav6=
             ;;
         esac
     done
@@ -9692,11 +9755,7 @@ menu_ipsw_special() {
         case $device_type in
             iPad1,1 ) device_type_special="iPad2,1"; device_model_special="k93";;
             iPod3,1 ) device_type_special="iPhone2,1"; device_model_special="n88";;
-            iPod4,1 )
-                device_type_special="iPhone3,3"
-                device_model_special="n92"
-                device_target_tethered=1
-            ;;
+            iPod4,1 ) device_type_special="iPhone3,3"; device_model_special="n92";;
         esac
         case $1 in
             7.1.2 ) device_target_build="11D257";;
@@ -9739,7 +9798,7 @@ menu_ipsw_special() {
             7.* )
                 case $device_type in
                     iPad1,1 ) print "* iOS 7 on iPad 1 is based on ipad-1-ios-7 by amy-and-nicole and pwnerblu: https://github.com/amy-and-nicole/ipad-1-ios-7";;
-                    iPod4,1 ) warn "This is a tethered upgrade and has many broken device features. Not recommended unless you know what you are doing.";;
+                    iPod4,1 ) warn "This unofficial upgrade has some broken device features. Not recommended unless you know what you are doing.";;
                 esac
             ;;
             6.* ) print "* iOS 6 on touch 3/iPad 1 uses SundanceInH2A by NyanSatan: https://github.com/NyanSatan/SundanceInH2A";;
@@ -9933,6 +9992,15 @@ menu_ipsw_browse() {
     local text="Target"
     local picker
     local scan
+    local check_vers="$check_vers"
+    local base_vers="$base_vers"
+    if [[ $ipsw_fourthree == 1 ]]; then
+        check_vers="4.3"
+        base_vers="4.3.x"
+    elif [[ $device_base_drav6 == 1 ]]; then
+        check_vers="$device_base_vers"
+        base_vers="$device_base_vers"
+    fi
 
     ipsw_latest_set
     local menu_items=($(ls ../$device_type_lower*restore.ipsw $HOME/Downloads/$device_type_lower*restore.ipsw 2>/dev/null))
@@ -10112,12 +10180,6 @@ menu_ipsw_browse() {
             fi
         ;;
         "base" )
-            local check_vers="$check_vers"
-            local base_vers="$base_vers"
-            if [[ $ipsw_fourthree == 1 ]]; then
-                check_vers="4.3"
-                base_vers="4.3.x"
-            fi
             if [[ $device_base_vers != "$check_vers"* ]]; then
                 log "Selected IPSW is not for iOS $base_vers."
                 if [[ $device_proc == 4 ]]; then
@@ -10532,7 +10594,7 @@ menu_usefulutilities() {
                 *    ) menu_items+=("Enter pwnDFU Mode");;
             esac
             menu_items+=("Clear NVRAM")
-            if [[ $device_canpowder == 1 ]]; then
+            if [[ $device_can_powder == 1 || $device_can_drav6 == 1 ]]; then
                 menu_items+=("Disable/Enable Exploit")
             elif [[ $device_type == "iPhone2,1" && $device_newbr != 0 && $device_mode != "Normal" ]]; then
                 menu_items+=("Install alloc8 Exploit")
@@ -12268,7 +12330,7 @@ main() {
             if [[ $device_proc != 1 && $device_type != "iPod2,1" ]] && (( device_proc < 7 )); then
                 print "* Note: For tethered downgrades, you need to boot your device using the Just Boot option. Exiting recovery mode will not work."
             fi
-            if [[ $device_canpowder == 1 ]]; then
+            if [[ $device_can_powder == 1 || $device_can_drav6 == 1 ]]; then
                 print "* Note 2: If your device is stuck in recovery mode, it may have been restored with powdersn0w before."
                 print "    - If so, try to clear the device's NVRAM: go to Useful Utilities -> Clear NVRAM"
             fi
