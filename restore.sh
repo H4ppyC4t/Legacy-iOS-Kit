@@ -9430,6 +9430,7 @@ menu_ipsw() {
                     device_base_build="10B329"
                 ;;
             esac
+            base_vers="$device_base_vers"
         elif [[ $1 == *"Tethered"* ]]; then
             device_target_tethered=1
         elif [[ -n $device_target_vers && -e "../$newpath.ipsw" ]]; then
