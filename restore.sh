@@ -2836,8 +2836,7 @@ ipsw_preference_set() {
         [76543]* ) ipsw_canjailbreak=1;;
     esac
     if [[ $device_target_vers == "$device_latest_vers" && $device_deadbb == 1 ]] ||
-       [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other == 1 ]] ||
-       [[ $device_proc == 5 && $target_vers_maj == 5 && $device_target_powder == 1 ]]; then
+       [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other == 1 ]]; then
         ipsw_gasgauge_patch=1
     fi
     if [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
