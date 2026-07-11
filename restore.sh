@@ -1705,19 +1705,19 @@ device_get_info() {
         iPhone3,[12] | iPad2,2 | iPad3,3 ) device_activationissue=1;;
     esac
     # enable activation records flag if device is a5(x)/a6(x), normal mode, and activated
-    if [[ $device_proc == 5 || $device_proc == 6 ]] && [[ -z $device_disable_actrec ]]; then
-        if [[ $device_9900candidate == 1 && $device_mode == "Normal" && $device_unactivated != 1 ]]; then
-            device_actrec=1
-            device_auto_actrec=1
-        elif [[ -s ../saved/$device_type/activation-$device_ecid.tar ]]; then
-            device_actrec=1
-            device_auto_actrec=2
-        fi
-    fi
-    if [[ -z $device_disable_actrec && $device_activationissue == 1 && $device_mode == "Normal" && $device_unactivated != 1 ]]; then
+    if [[ $device_proc == 5 || $device_proc == 6 ]] && [[ -z $device_disable_actrec ]] &&
+       [[ $device_9900candidate == 1 && $device_mode == "Normal" && $device_unactivated != 1 ]]; then
+        device_actrec=1
+        device_auto_actrec=1
+    elif [[ -s ../saved/$device_type/activation-$device_ecid.tar ]] && (( device_proc <= 6 )); then
+        device_actrec=1
+        device_auto_actrec=2
+    elif [[ -z $device_disable_actrec && $device_activationissue == 1 &&
+            $device_mode == "Normal" && $device_unactivated != 1 ]]; then
         device_actrec=1
         device_auto_actrec=3
     fi
+
     if [[ $device_argmode == "none" ]]; then
         device_mode="none"
         device_vers="Unknown"
@@ -8296,10 +8296,10 @@ menu_print_info() {
         esac
         if [[ $device_activationissue == 1 ]]; then
             warn "Your device is an $device_type. These devices are affected by an activation issue."
-            [[ $device_unactivated != 2 ]] && print "* If you haven't already, dump activation by selecting Activation Records in Misc Utilities"
+            [[ $device_auto_actrec != 2 ]] && print "* If you haven't already, dump activation by selecting Activation Records in Misc Utilities"
         fi
         if [[ $device_auto_actrec == 1 ]]; then
-            print "* Activated A${device_proc}(X) device with 9900 IMEI detected. Activation Records stitching enabled."
+            print "* Activated A${device_proc}(X) device detected. Activation Records stitching enabled."
         elif [[ $device_auto_actrec == 2 ]]; then
             print "* Existing activation records detected. Activation Records stitching enabled."
         elif [[ $device_auto_actrec == 3 ]]; then
@@ -9473,6 +9473,7 @@ menu_ipsw() {
                     iPhone5,[34] ) lo=7.0; hi=9.3.5;;
                     iPad1,1 ) lo=3.2; hi=5.1;;
                     iPod3,1 ) lo=3.1.1; hi=5.1;;
+                    iPod4,1 ) lo=4.1; hi=6.1.5;;
                 esac
                 print "* Any iOS version from $lo to $hi is supported"
             fi
