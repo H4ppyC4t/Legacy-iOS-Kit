@@ -1132,9 +1132,6 @@ device_manufacturing() {
         print "* Cannot check $device_name bootrom model in Recovery mode. Enter DFU mode to get bootrom model"
         return
     elif [[ $device_type != "iPhone2,1" && $device_type != "iPod2,1" ]]; then
-        case $device_type in
-            iPhone4,1 | iPhone5,2 | iPad2,7 | iPad3,[26] ) device_9900candidate=1;;
-        esac
         if [[ $device_type == "DFU" ]]; then
             print "* Cannot check for manufacturing date in DFU mode"
             return
@@ -1702,15 +1699,20 @@ device_get_info() {
     if [[ $device_disable_bbupdate == 1 && $device_use_bb != 0 ]] && (( device_proc < 7 )); then
         device_disable_bbupdate="$device_type"
     fi
+    # activation issue stuff
+    case $device_type in
+        iPhone4,1 | iPhone5,2 | iPad2,7 | iPad3,[26] ) device_9900candidate=1;;
+        iPhone3,[12] | iPad2,2 | iPad3,3 ) device_activationissue=1;;
+    esac
     # enable activation records flag if device is a5(x)/a6(x), normal mode, and activated
     if [[ $device_proc == 5 || $device_proc == 6 ]] && [[ -z $device_disable_actrec ]]; then
-        if [[ $device_mode == "Normal" && $device_unactivated != 1 && $device_imei == "9900"* ]]; then
+        if [[ $device_9900candidate == 1 && $device_mode == "Normal" && $device_unactivated != 1 ]]; then
             device_actrec=1
             device_auto_actrec=1
         elif [[ -s ../saved/$device_type/activation-$device_ecid.tar ]]; then
             device_actrec=1
             device_auto_actrec=2
-        elif [[ $device_type == "iPad3,3" && $device_mode == "Normal" && $device_unactivated != 1 ]]; then
+        elif [[ $device_activationissue == 1 && $device_mode == "Normal" && $device_unactivated != 1 ]]; then
             device_actrec=1
             device_auto_actrec=3
         fi
@@ -8232,8 +8234,8 @@ menu_print_info() {
                 elif [[ $device_9900candidate == 1 && $device_mode != "Normal" ]]; then
                     warn "Your device is possibly affected by an activation issue. Please check your device's IMEI."
                     print "* If it starts with 9900, enable Activation Records stitching in Misc Utilities"
-                elif [[ $device_type == "iPad3,3" ]]; then
-                    warn "Your device is an iPad3,3. These devices are affected by an activation issue."
+                elif [[ $device_activationissue == 1 ]]; then
+                    warn "Your device is an $device_type. These devices are affected by an activation issue."
                     [[ $device_unactivated != 2 ]] && print "* If you haven't already, dump activation by selecting Activation Records in Misc Utilities"
                 fi
             ;;
@@ -8243,7 +8245,7 @@ menu_print_info() {
         elif [[ $device_auto_actrec == 2 ]]; then
             print "* Existing activation records detected. Activation Records stitching enabled."
         elif [[ $device_auto_actrec == 3 ]]; then
-            print "* Activated iPad3,3 detected. Activation Records stitching enabled."
+            print "* Activated $device_type detected. Activation Records stitching enabled."
         elif [[ $device_actrec == 1 ]]; then
             warn "activation-records flag detected. Activation Records stitching enabled."
         fi
