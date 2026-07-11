@@ -142,7 +142,7 @@
         - iPad 3 7.1.x
         - iPad 4 7.0.x and 7.1.x
         - iPod touch 5 7.0.x
-- [De-Rebus-Antiquis-v6](https://github.com/synackuk/De-Rebus-Antiquis-v6) - synackuk
+- [De-Rebus-Antiquis-v6](https://github.com/synackuk/De-Rebus-Antiquis-v6) - [synackuk](https://github.com/synackuk) and [Pingzi610](https://github.com/Pingzi610/De-Rebus-Antiquis-v6)
 - [ipwndfu](https://github.com/LukeZGD/ipwndfu) - axi0mX; LukeZGD fork
 - [iPwnder32](https://github.com/dora2ios/iPwnder32) - dora2ios
 - [ipwnder_lite](https://github.com/LukeZGD/ipwnder_lite/tree/old) - dora2ios; LukeZGD fork

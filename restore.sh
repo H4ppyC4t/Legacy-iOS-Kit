@@ -2836,7 +2836,8 @@ ipsw_preference_set() {
         [76543]* ) ipsw_canjailbreak=1;;
     esac
     if [[ $device_target_vers == "$device_latest_vers" && $device_deadbb == 1 ]] ||
-       [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other == 1 ]]; then
+       [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other == 1 ]] ||
+       [[ $device_proc == 5 && $target_vers_maj == 5 && $device_target_powder == 1 ]]; then
         ipsw_gasgauge_patch=1
     fi
     if [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
@@ -3078,7 +3079,7 @@ shsh_save() {
     elif [[ $device_base_drav6 == 1 && $device_proc == 5 ]]; then
         buildmanifest="../resources/manifest/BuildManifest_${device_type}_${version}.plist"
     fi
-    shsh_check=${device_ecid}_${device_type}_${device_model}ap_${version}-${build_id}_${apnonce}*.shsh*
+    shsh_check=${device_ecid}_${device_type}_${device_model}ap_${version}-*_${apnonce}*.shsh*
 
     if [[ $(ls ../saved/shsh/$shsh_check 2>/dev/null) && -z $apnonce && $bbcheck != 1 ]]; then
         shsh_path="$(ls ../saved/shsh/$shsh_check)"
@@ -4404,10 +4405,10 @@ patch_iboot() {
         # ibec
         echo "0000010: 6365" | xxd -r - iBoot
         echo "0000020: 6365" | xxd -r - iBoot
-    elif [[ $device_base_drav6 == 1 ]]; then
-        # ibox
-        echo "0000010: 786F" | xxd -r - iBoot
-        echo "0000020: 786F" | xxd -r - iBoot
+    # elif [[ $device_base_drav6 == 1 ]]; then
+    #     # ibox
+    #     echo "0000010: 786F" | xxd -r - iBoot
+    #     echo "0000020: 786F" | xxd -r - iBoot
     elif [[ $device_type != "iPhone2,1" ]]; then
         # ibob
         echo "0000010: 626F" | xxd -r - iBoot
@@ -4737,7 +4738,7 @@ ipsw_prepare_specialios7() {
         "$dir/img3maker" -f iBEC.patched -o $saves/pwnediBEC.dfu -t ibec
         log "Patch iBoot"
         "$dir/iBoot32Patcher" iBoot.dec iBoot.patched --rsa --debug --boot-partition --boot-ramdisk -b "-v amfi=0xff cs_enforcement_disable=1"
-        "$dir/img3maker" -f iBoot.patched -o $all_flash2/iBoot2.img3 -t ibox
+        "$dir/img3maker" -f iBoot.patched -o $all_flash2/iBoot2.img3 -t ibob # ibox
         echo "iBoot2.img3" >> $all_flash2/manifest
     fi
 
@@ -4836,6 +4837,8 @@ ipsw_prepare_specialios7() {
         "$dir/xpwntool" kc kc.new -iv $kc_iv -k $kc_key -decrypt
         cp kc.new $saves/$device_target_build/kernelcache
         cp kc.new $ipsw_custom/kernelcache.release.$device_model # wont be used, but needed for restore
+        log "Target devicetree"
+        cp $patches/DeviceTree.n81ap.img3 $all_flash2/
     fi
 
     log "Target RootFS: extracting dmg from ipsw"
@@ -5054,7 +5057,8 @@ ipsw_prepare_partition_script() {
         sed -i.bak 's|^dd of=\$exploitDisk if=/exploit bs=.* count=1$|dd of=\$exploitDisk if=/exploit bs='"$new_bs"' count=1|' "$file"
     fi
 
-    if [[ $device_base_vers == "5."* || $device_type == "iPhone3,1" ]]; then
+    if [[ $device_base_vers == "5."* || $device_type == "iPhone3,1" ]] ||
+       [[ $device_base_drav6 == 1 && $device_type == "iPhone4,1" ]]; then
         log "Removing nvram boot-ramdisk"
         sed -i.bak '/^nvram boot-ramdisk/d' "$file"
         rm "$file.bak"
@@ -7625,6 +7629,12 @@ device_ramdisk_setnvram() {
                     fi
                 fi
             ;;
+            iPhone4,1 )
+                read -p "$(input "Select base version: Y for iOS 6.1.3 (DRA v6), N for iOS 7.1.x (Y/n) ")" opt
+                if [[ $opt == 'N' || $opt == 'n' ]]; then
+                    $ssh -p $ssh_port root@127.0.0.1 "nvram boot-ramdisk=/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/0/1/2/3/4/5/6/7/8/9/A/B/C/disk.dmg"
+                fi
+            ;;
             * ) $ssh -p $ssh_port root@127.0.0.1 "nvram boot-ramdisk=/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/0/1/2/3/4/5/6/7/8/9/A/B/C/disk.dmg";;
         esac
     elif [[ $device_type == "iPad1,1" ]]; then
@@ -9031,6 +9041,13 @@ menu_restore() {
     while [[ -z "$mode" && -z "$back" ]]; do
         menu_items=()
         case $device_type in
+            iPhone3,* | iPad1,1 | iPod3,1 )
+                menu_items+=("powdersn0w (any iOS)");;
+        esac
+        if [[ $device_can_drav6 == 1 ]]; then
+            menu_items+=("DRA v6 (any iOS)")
+        fi
+        case $device_type in
             iPad4,[12345] | iPhone6,[12] )
                 menu_items+=("iOS 10.3.3");;
             iPad2,[1234567] | iPad3,[123456] | iPhone4,1 | iPhone5,[12] | iPod5,1 )
@@ -9050,13 +9067,6 @@ menu_restore() {
                 fi
             ;;
         esac
-        case $device_type in
-            iPhone3,* | iPad1,1 | iPod3,1 )
-                menu_items+=("powdersn0w (any iOS)");;
-        esac
-        if [[ $device_can_drav6 == 1 ]]; then
-            menu_items+=("DRA v6 (any iOS)")
-        fi
         if (( device_proc < 7 )) || [[ $platform == "linux" ]]; then
             menu_items+=("Latest iOS ($device_latest_vers)")
         fi
@@ -9944,6 +9954,8 @@ ipsw_custom_set() {
         ipsw_custom+="P"
         if [[ $device_base_vers == "7.0"* ]]; then
             ipsw_custom+="0"
+        elif [[ $device_base_drav6 == 1 ]]; then
+            ipsw_custom+="6"
         fi
     fi
     if [[ $device_target_tethered == 1 ]]; then
