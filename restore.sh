@@ -1712,10 +1712,11 @@ device_get_info() {
         elif [[ -s ../saved/$device_type/activation-$device_ecid.tar ]]; then
             device_actrec=1
             device_auto_actrec=2
-        elif [[ $device_activationissue == 1 && $device_mode == "Normal" && $device_unactivated != 1 ]]; then
-            device_actrec=1
-            device_auto_actrec=3
         fi
+    fi
+    if [[ -z $device_disable_actrec && $device_activationissue == 1 && $device_mode == "Normal" && $device_unactivated != 1 ]]; then
+        device_actrec=1
+        device_auto_actrec=3
     fi
     if [[ $device_argmode == "none" ]]; then
         device_mode="none"
@@ -8290,12 +8291,13 @@ menu_print_info() {
                 elif [[ $device_9900candidate == 1 && $device_mode != "Normal" ]]; then
                     warn "Your device is possibly affected by an activation issue. Please check your device's IMEI."
                     print "* If it starts with 9900, enable Activation Records stitching in Misc Utilities"
-                elif [[ $device_activationissue == 1 ]]; then
-                    warn "Your device is an $device_type. These devices are affected by an activation issue."
-                    [[ $device_unactivated != 2 ]] && print "* If you haven't already, dump activation by selecting Activation Records in Misc Utilities"
                 fi
             ;;
         esac
+        if [[ $device_activationissue == 1 ]]; then
+            warn "Your device is an $device_type. These devices are affected by an activation issue."
+            [[ $device_unactivated != 2 ]] && print "* If you haven't already, dump activation by selecting Activation Records in Misc Utilities"
+        fi
         if [[ $device_auto_actrec == 1 ]]; then
             print "* Activated A${device_proc}(X) device with 9900 IMEI detected. Activation Records stitching enabled."
         elif [[ $device_auto_actrec == 2 ]]; then
