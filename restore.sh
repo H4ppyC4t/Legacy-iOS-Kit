@@ -2837,7 +2837,8 @@ ipsw_preference_set() {
         [76543]* ) ipsw_canjailbreak=1;;
     esac
     if [[ $device_target_vers == "$device_latest_vers" && $device_deadbb == 1 ]] ||
-       [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other == 1 ]]; then
+       [[ $device_proc == 6 && $target_vers_maj == 10 && $device_target_other == 1 ]] ||
+       [[ $device_proc == 5 && $target_vers_maj == 5 && $device_target_powder == 1 ]]; then
         ipsw_gasgauge_patch=1
     fi
     if [[ $device_target_tethered == 1 && $ipsw_gasgauge_patch == 1 &&
@@ -3914,8 +3915,9 @@ ipsw_prepare_bundle() {
     elif [[ $1 == "target" ]]; then
         echo "<key>FilesystemPackage</key><dict><key>bootstrap</key><string>freeze.tar</string>" >> $NewPlist
         case $vers in
-            8* | 9* ) echo "<key>package</key><string>src/ios9.tar</string>" >> $NewPlist;;
+            [89].* ) echo "<key>package</key><string>src/ios9.tar</string>" >> $NewPlist;;
         esac
+        # dummy "ios" file
         printf "</dict><key>RamdiskPackage</key><dict><key>package</key><string>src/bin.tar</string><key>ios</key><string>ios" >> $NewPlist
         [[ $ipsw_jailbreak == 1 ]] && printf "%s" "${vers:0:1}" >> "$NewPlist"
         echo "</string></dict>" >> $NewPlist
@@ -5308,8 +5310,10 @@ ipsw_prepare_multipatch() {
             iPad3,[456]  ) hw="ipad3b";;
         esac
         case $device_base_build in
-            "11A"* | "11B"* ) base_build="11B554a";;
-            "9"* ) base_build="9B206";;
+            11[AB]* ) base_build="11B554a";;
+            10*     ) base_build="$device_base_build";;
+            9B*     ) base_build="9B206";;
+            9A*     ) base_build="9A405";;
         esac
         local exploit="src/target/$hw/$base_build/exploit"
         ipsw_prepare_partition_script
@@ -5320,6 +5324,12 @@ ipsw_prepare_multipatch() {
         "$dir/hfsplus" RestoreRamdisk.dec chmod 755 sbin/reboot
         "$dir/hfsplus" RestoreRamdisk.dec chown 0:0 sbin/reboot
         "$dir/hfsplus" RestoreRamdisk.dec add $exploit exploit
+        # dummy "ios" file
+        if [[ $ipsw_jailbreak == 1 ]]; then
+            local ios="ios${device_target_vers:0:1}"
+            touch $ios
+            "$dir/hfsplus" RestoreRamdisk.dec add $ios $ios
+        fi
     elif [[ $ipsw_jailbreak == 1 && $device_target_vers == "8."* && $ipsw_everuntether != 1 ]] ||
          [[ $ipsw_jailbreak == 1 && $device_target_vers == "7."* ]]; then
         # daibutsu/everpwnage haxx overwrite and aquila reboot.sh
@@ -7617,6 +7627,7 @@ device_ramdisk() {
 }
 
 device_ramdisk_setnvram() {
+    local boot_ramdisk="nvram boot-ramdisk=/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/0/1/2/3/4/5/6/7/8/9/A/B/C/disk.dmg"
     log "Sending commands for setting NVRAM variables..."
     $ssh -p $ssh_port root@127.0.0.1 "nvram -c; nvram boot-partition=$rec"
     if [[ $rec == 2 ]]; then
@@ -7632,10 +7643,10 @@ device_ramdisk_setnvram() {
             iPhone4,1 )
                 read -p "$(input "Select base version: Y for iOS 6.1.3 (DRA v6), N for iOS 7.1.x (Y/n) ")" opt
                 if [[ $opt == 'N' || $opt == 'n' ]]; then
-                    $ssh -p $ssh_port root@127.0.0.1 "nvram boot-ramdisk=/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/0/1/2/3/4/5/6/7/8/9/A/B/C/disk.dmg"
+                    $ssh -p $ssh_port root@127.0.0.1 "$boot_ramdisk"
                 fi
             ;;
-            * ) $ssh -p $ssh_port root@127.0.0.1 "nvram boot-ramdisk=/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/0/1/2/3/4/5/6/7/8/9/A/B/C/disk.dmg";;
+            * ) $ssh -p $ssh_port root@127.0.0.1 "$boot_ramdisk";;
         esac
     elif [[ $device_type == "iPad1,1" ]]; then
         device_ramdisk_iosvers
@@ -9448,7 +9459,7 @@ menu_ipsw() {
         echo
         if [[ $1 == *"powdersn0w"* || $1 == *"DRA v6"* ]]; then
             menu_items+=("Select Base IPSW")
-            if [[ $device_proc == 4 ]]; then
+            if [[ -n $device_base_vers ]]; then
                 menu_items+=("Download Base IPSW")
             fi
             if [[ -n $ipsw_path ]]; then
@@ -11939,6 +11950,8 @@ device_dumpapp() {
 
             if [[ $check == 0 ]]; then
                 local ipa_name="$(echo "$available_apps_json" | $jq --argjson i $app_index -r 'to_entries[$i].value | if (.CFBundleDisplayName == "") then .CFBundleIdentifier else .CFBundleDisplayName end + " " + .CFBundleShortVersionString').ipa"
+                # Remove characters invalid in filenames
+                ipa_name="$(printf '%s' "$ipa_name" | tr '/\\:*?"<>|' '_')"
                 $scp -P $ssh_port root@127.0.0.1:/tmp/$selected2.ipa "../saved/applications"
                 $ssh -p $ssh_port root@127.0.0.1 "rm /tmp/$selected2.ipa"
                 mv "../saved/applications/$selected2.ipa" "../saved/applications/$ipa_name"
@@ -12266,7 +12279,11 @@ main() {
             fi
         done
         if [[ $check != 0 ]]; then
-            error "Please check your Internet connection before proceeding."
+            local error_msg=
+            if [[ -n $debian_ver ]]; then
+                error_msg="* On Debian, try running this to fix the ping command: sudo setcap 'cap_net_admin,cap_net_raw+ep' \$(command -v ping)"
+            fi
+            error "Please check your Internet connection before proceeding." "$error_msg"
         fi
     fi
 
