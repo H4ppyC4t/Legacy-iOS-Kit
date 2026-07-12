@@ -9304,6 +9304,7 @@ menu_ipsw() {
     local nav
     local start="(*) "
     local can_start
+    local base_vers="$base_vers"
 
     if [[ $2 == "ipsw" ]]; then
         nav=" > Main Menu > Misc Utilities > Create Custom IPSW > $1"
