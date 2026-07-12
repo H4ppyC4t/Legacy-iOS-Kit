@@ -5315,7 +5315,7 @@ ipsw_prepare_multipatch() {
             9B*     ) base_build="9B206";;
             9A*     ) base_build="9A405";;
         esac
-        local exploit="src/target/$hw/$base_build/exploit"
+        device_powder_exploit="src/target/$hw/$base_build/exploit"
         ipsw_prepare_partition_script
         log "Adding exploit and partition stuff"
         "$dir/hfsplus" RestoreRamdisk.dec untar src/bin.tar
@@ -5323,7 +5323,7 @@ ipsw_prepare_multipatch() {
         "$dir/hfsplus" RestoreRamdisk.dec add partition sbin/reboot
         "$dir/hfsplus" RestoreRamdisk.dec chmod 755 sbin/reboot
         "$dir/hfsplus" RestoreRamdisk.dec chown 0:0 sbin/reboot
-        "$dir/hfsplus" RestoreRamdisk.dec add $exploit exploit
+        "$dir/hfsplus" RestoreRamdisk.dec add $device_powder_exploit exploit
         # dummy "ios" file
         if [[ $ipsw_jailbreak == 1 ]]; then
             local ios="ios${device_target_vers:0:1}"
