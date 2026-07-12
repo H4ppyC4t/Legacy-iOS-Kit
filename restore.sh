@@ -3793,8 +3793,6 @@ ipsw_prepare_bundle() {
     local key="$device_fw_key"
     local vers="$device_target_vers"
     local build="$device_target_build"
-    local hw="$device_model"
-    local base_build="11D257"
     local RootSize
     local daibutsu
     FirmwareBundle="FirmwareBundles/"
@@ -3894,21 +3892,7 @@ ipsw_prepare_bundle() {
     fi
 
     if [[ $1 == "base" ]]; then
-        case $device_type in
-            iPhone5,[12] ) hw="iphone5";;
-            iPhone5,[34] ) hw="iphone5b";;
-            iPad2,[123]  ) hw="ipad2";;
-            iPad2,[567]  ) hw="ipad2b";;
-            iPad3,[123]  ) hw="ipad3";;
-            iPad3,[456]  ) hw="ipad3b";;
-        esac
-        case $device_base_build in
-            11[AB]* ) base_build="11B554a";;
-            10*     ) base_build="$device_base_build";;
-            9B*     ) base_build="9B206";;
-            9A*     ) base_build="9A405";;
-        esac
-        device_powder_exploit="src/target/$hw/$base_build/exploit"
+        ipsw_prepare_powder_exploit
         echo "<key>RamdiskExploit</key><dict>" >> $NewPlist
         echo "<key>exploit</key><string>$device_powder_exploit</string>" >> $NewPlist
         echo "<key>inject</key><string>partition</string></dict>" >> $NewPlist
@@ -4778,16 +4762,21 @@ ipsw_prepare_specialios7() {
         "$dir/hfsplus" ramdisk.dec chown 0:0 private/etc/rc.boot
         "$dir/hfsplus" ramdisk.dec add $sundance/exploit/exploit-k48.dmg exploit.dmg
     elif [[ $ipsw_jailbreak == 1 ]]; then # touch 4 only
-        local exploit="src/target/n81/10B500/exploit"
-        ipsw_prepare_partition_script
+        touch ios7
+        "$dir/hfsplus" ramdisk.dec add ios7 ios7
+    fi
+
+    if [[ $device_type == "iPod4,1" ]]; then # dra v6 to untether
         log "Adding exploit and partition stuff"
+        ipsw_prepare_powder_exploit
+        ipsw_prepare_partition_script
         cp -R ../resources/firmware/src .
         "$dir/hfsplus" ramdisk.dec untar src/bin.tar
         "$dir/hfsplus" ramdisk.dec mv sbin/reboot sbin/reboot_
         "$dir/hfsplus" ramdisk.dec add partition sbin/reboot
         "$dir/hfsplus" ramdisk.dec chmod 755 sbin/reboot
         "$dir/hfsplus" ramdisk.dec chown 0:0 sbin/reboot
-        "$dir/hfsplus" ramdisk.dec add $exploit exploit
+        "$dir/hfsplus" ramdisk.dec add $device_powder_exploit exploit
     fi
 
     log "Repack Restore Ramdisk"
@@ -5038,6 +5027,26 @@ ipsw_prepare_sundanceinh2a() {
     log "Add all to custom IPSW"
     zip -r0 temp.ipsw Firmware/dfu/*
     mv temp.ipsw "$ipsw_custom.ipsw"
+}
+
+ipsw_prepare_powder_exploit() {
+    local hw="$device_model"
+    local base_build="11D257"
+    case $device_type in
+        iPhone5,[12] ) hw="iphone5";;
+        iPhone5,[34] ) hw="iphone5b";;
+        iPad2,[123]  ) hw="ipad2";;
+        iPad2,[567]  ) hw="ipad2b";;
+        iPad3,[123]  ) hw="ipad3";;
+        iPad3,[456]  ) hw="ipad3b";;
+    esac
+    case $device_base_build in
+        11[AB]* ) base_build="11B554a";;
+        10*     ) base_build="$device_base_build";;
+        9B*     ) base_build="9B206";;
+        9A*     ) base_build="9A405";;
+    esac
+    device_powder_exploit="src/target/$hw/$base_build/exploit"
 }
 
 ipsw_prepare_partition_script() {
@@ -5291,6 +5300,7 @@ ipsw_prepare_multipatch() {
         :
     elif [[ $device_target_powder == 1 && $device_target_vers == "4"* ]]; then
         log "Adding exploit and partition stuff"
+        ipsw_prepare_powder_exploit
         cp -R ../resources/firmware/src .
         "$dir/hfsplus" RestoreRamdisk.dec untar src/bin4.tar
         "$dir/hfsplus" RestoreRamdisk.dec mv sbin/reboot sbin/reboot_
@@ -5299,25 +5309,9 @@ ipsw_prepare_multipatch() {
         "$dir/hfsplus" RestoreRamdisk.dec chmod 755 sbin/reboot
         "$dir/hfsplus" RestoreRamdisk.dec chown 0:0 sbin/reboot
     elif [[ $device_target_powder == 1 ]]; then
-        local hw="$device_model"
-        local base_build="11D257"
-        case $device_type in
-            iPhone5,[12] ) hw="iphone5";;
-            iPhone5,[34] ) hw="iphone5b";;
-            iPad2,[123]  ) hw="ipad2";;
-            iPad2,[567]  ) hw="ipad2b";;
-            iPad3,[123]  ) hw="ipad3";;
-            iPad3,[456]  ) hw="ipad3b";;
-        esac
-        case $device_base_build in
-            11[AB]* ) base_build="11B554a";;
-            10*     ) base_build="$device_base_build";;
-            9B*     ) base_build="9B206";;
-            9A*     ) base_build="9A405";;
-        esac
-        device_powder_exploit="src/target/$hw/$base_build/exploit"
-        ipsw_prepare_partition_script
         log "Adding exploit and partition stuff"
+        ipsw_prepare_powder_exploit
+        ipsw_prepare_partition_script
         "$dir/hfsplus" RestoreRamdisk.dec untar src/bin.tar
         "$dir/hfsplus" RestoreRamdisk.dec mv sbin/reboot sbin/reboot_
         "$dir/hfsplus" RestoreRamdisk.dec add partition sbin/reboot
