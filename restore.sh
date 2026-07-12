@@ -2960,19 +2960,22 @@ ipsw_preference_set() {
         echo
     fi
 
+    if (( target_vers_maj >= 7 )); then
+        ipsw_canhacktivate=
+    fi
     if [[ $ipsw_jailbreak == 1 && -z $ipsw_hacktivate && $ipsw_canhacktivate == 1 ]]; then
         input "Hacktivate Option"
         print "* When this option is enabled, your device will be activated on restore."
         print "* Enable this option if you have no valid SIM card to activate the phone."
         print "* Disable this option if you have a working SIM card and want cellular data."
-        print "* This option is disabled by default (N). Select this option if unsure."
-        select_yesno "Enable this option?" 0
-        if [[ $? != 0 ]]; then
-            log "Hacktivate option enabled by user."
-            ipsw_hacktivate=1
-        else
-            log "Hacktivate option disabled."
+        print "* This option is enabled by default (N). Select this option if unsure."
+        select_yesno "Enable this option?" 1
+        if [[ $? != 1 ]]; then
+            log "Hacktivate option disabled by user."
             ipsw_hacktivate=
+        else
+            log "Hacktivate option enabled."
+            ipsw_hacktivate=1
         fi
         echo
     fi
@@ -9337,7 +9340,12 @@ menu_ipsw() {
                 device_target_vers="$device_latest_vers"
                 device_target_build="$device_latest_build"
                 case $device_latest_vers in
-                    [643]* ) ipsw_canhacktivate=1;;
+                    [76543].* ) ipsw_canhacktivate=1;;
+                esac
+            ;;
+            *"powdersn0w"* )
+                case $device_latest_vers in
+                    [76543].* ) ipsw_canhacktivate=1;;
                 esac
             ;;
             [6543]* )
@@ -9362,7 +9370,7 @@ menu_ipsw() {
         esac
         target_vers_maj=$(echo "$device_target_vers" | cut -d. -f1)
         target_vers_min=$(echo "$device_target_vers" | cut -d. -f2)
-        if [[ $device_type != "iPhone"* ]]; then
+        if [[ $device_type != "iPhone"* && $device_type != "iPad1,1" ]]; then
             ipsw_canhacktivate=
         fi
         if [[ $device_proc == 1 ]]; then
