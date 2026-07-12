@@ -3027,6 +3027,8 @@ ipsw_preference_set() {
             3.0*        ) log "3GS verbose boot is always enabled on 3.0.x";;
             * ) ipsw_canverbose=1;;
         esac
+    elif [[ -n $device_type_special && $device_type == "iPod4,1" ]]; then
+        ipsw_canverbose=1
     fi
 
     if [[ $ipsw_canverbose == 1 && -z $ipsw_verbose ]]; then
@@ -4722,11 +4724,13 @@ ipsw_prepare_specialios7() {
         log "Patch restore iBEC"
         "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "rd=md0 -v amfi=0xff cs_enforcement_disable=1"
         "$dir/img3maker" -f iBEC.patched -o $ipsw_custom/Firmware/dfu/iBEC.${device_model}ap.RELEASE.dfu -t ibec
+        local bootargs="pio-error=0"
+        [[ $ipsw_verbose == 1 ]] && bootargs+=" -v"
         log "Patch tether boot iBEC"
-        "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "-v amfi=0xff cs_enforcement_disable=1"
+        "$dir/iBoot32Patcher" iBEC.dec iBEC.patched --rsa --debug --ticket -b "$bootargs"
         "$dir/img3maker" -f iBEC.patched -o $saves/pwnediBEC.dfu -t ibec
         log "Patch iBoot"
-        "$dir/iBoot32Patcher" iBoot.dec iBoot.patched --rsa --debug --boot-partition --boot-ramdisk -b "-v amfi=0xff cs_enforcement_disable=1"
+        "$dir/iBoot32Patcher" iBoot.dec iBoot.patched --rsa --debug --boot-partition --boot-ramdisk -b "$bootargs"
         "$dir/img3maker" -f iBoot.patched -o $all_flash2/iBoot2.img3 -t ibob # ibox
         echo "iBoot2.img3" >> $all_flash2/manifest
     fi
