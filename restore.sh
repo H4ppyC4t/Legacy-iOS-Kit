@@ -2530,23 +2530,34 @@ python3_init() {
 
 device_fw_key_server() {
     local wikiproxy="wikiproxy-go_$platform-$(uname -m)"
+    local wikiproxy_ipw="wikiproxy-go-ipw_$platform-$(uname -m)"
+    local port=8889
 
-    if [[ ! -s $wikiproxy ]]; then
+    if [[ ! -s ../saved/$wikiproxy || ! -s ../saved/$wikiproxy_ipw ]]; then
         file_download https://github.com/LukeZGD/wikiproxy-go/releases/download/latest/$wikiproxy.zip $wikiproxy.zip
         file_extract $wikiproxy.zip
-        if [[ ! -s main ]]; then
+        if [[ ! -s main || ! -s main-ipw ]]; then
             error "wikiproxy failed to download. Please run the script again"
         fi
         mv main ../saved/$wikiproxy
+        mv main-ipw ../saved/$wikiproxy_ipw
+    fi
+
+    if [[ $1 == "ipw" ]]; then
+        wikiproxy="$wikiproxy_ipw"
+        port=8890
+    fi
+    if [[ -n $httpserver_pid ]]; then
+        kill $httpserver_pid
     fi
 
     log "Running wikiproxy..."
-    ../saved/$wikiproxy &
+    ../saved/$wikiproxy $port &
     httpserver_pid=$!
 
     log "Waiting for local server"
     while true; do
-        if $curl -sS http://127.0.0.1:8888 >/dev/null 2>&1; then
+        if $curl -sS http://127.0.0.1:$port >/dev/null 2>&1; then
             break
         fi
 
@@ -2588,10 +2599,11 @@ device_fw_key_check() {
 
     if [[ ! -e "$keys_path/index.html" ]]; then
         mkdir -p "$keys_path"
-        local try=("https://raw.githubusercontent.com/LukeZGD/Legacy-iOS-Kit-Keys/master/$device_type/$build/index.html"
-                   "http://127.0.0.1:8888/firmware/$device_type/$build")
+        local try=("http://127.0.0.1:8889/firmware/$device_type/$build"
+                   "http://127.0.0.1:8890/firmware/$device_type/$build")
         for i in "${try[@]}"; do
-            [[ $i == *"127.0.0.1:8888"* ]] && device_fw_key_server
+            [[ $i == *"127.0.0.1:8889"* ]] && device_fw_key_server
+            [[ $i == *"127.0.0.1:8890"* ]] && device_fw_key_server ipw
             log "Getting firmware keys for $device_type-$build: $i"
             download_from_url "$i" index.html
             if [[ $(cat index.html | grep -c "$build") == 1 ]]; then
