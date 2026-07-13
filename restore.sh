@@ -2599,7 +2599,8 @@ device_fw_key_check() {
 
     if [[ ! -e "$keys_path/index.html" ]]; then
         mkdir -p "$keys_path"
-        local try=("http://127.0.0.1:8889/firmware/$device_type/$build"
+        local try=("https://raw.githubusercontent.com/LukeZGD/Legacy-iOS-Kit-Keys/master/$device_type/$build/index.html"
+                   "http://127.0.0.1:8889/firmware/$device_type/$build"
                    "http://127.0.0.1:8890/firmware/$device_type/$build")
         for i in "${try[@]}"; do
             [[ $i == *"127.0.0.1:8889"* ]] && device_fw_key_server
