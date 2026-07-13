@@ -2529,40 +2529,19 @@ python3_init() {
 }
 
 device_fw_key_server() {
-    local venv_name
-    local venv
-    local repo="m1stadev"
-    local error_msg=
+    local wikiproxy="wikiproxy-go_$platform-$(uname -m)"
 
-    python3_init
-    if (( python_minver <= 13 )); then
-        repo="LukeZGD"
-    fi
-    venv_name="wikiproxy-${repo}_venv"
-    venv="../saved/$venv_name"
-
-    # remove old venv
-    if [[ -d "../saved/wikiproxy_venv" ]]; then
-        rm -r "../saved/wikiproxy_venv"
-    fi
-
-    if [[ ! -d $venv || ! -s $venv/bin/python3 ]]; then
-        log "Creating venv for wikiproxy"
-        python3 -m venv "$venv"
-    fi
-    if [[ ! -d $venv || ! -s $venv/bin/python3 ]]; then
-        warn "Creation of venv seems to have failed. wikiproxy will not run."
-        warn "If you do not have Python 3 installed, install it since wikiproxy requires it."
-        return
-    fi
-
-    if [[ ! -s $venv/bin/wikiproxy ]]; then
-        log "Installing wikiproxy using pip..."
-        "$venv/bin/pip" install "git+https://github.com/${repo}/wikiproxy.git"
+    if [[ ! -s $wikiproxy ]]; then
+        file_download https://github.com/LukeZGD/wikiproxy-go/releases/download/latest/$wikiproxy.zip $wikiproxy.zip
+        file_extract $wikiproxy.zip
+        if [[ ! -s main ]]; then
+            error "wikiproxy failed to download. Please run the script again"
+        fi
+        mv main ../saved/$wikiproxy
     fi
 
     log "Running wikiproxy..."
-    "$(cd .. && pwd)/saved/$venv_name/bin/wikiproxy" &
+    ../saved/$wikiproxy &
     httpserver_pid=$!
 
     log "Waiting for local server"
@@ -2627,8 +2606,10 @@ device_fw_key_check() {
             error "Failed to download firmware keys." "$error_msg"
         fi
         mv index.html "$keys_path/"
-        log "Stopping wikiproxy server"
-        [[ -n $httpserver_pid ]] && kill $httpserver_pid && wait $httpserver_pid
+        if [[ -n $httpserver_pid ]]; then
+            log "Stopping wikiproxy server"
+            kill $httpserver_pid && wait $httpserver_pid
+        fi
     fi
     # workaround for some futurerestore/libipatcher issue/feature
     mkdir -p "$device_fw_dir/${device_model}ap/$build/" "$device_fw_dir/$device_type/$build/"
