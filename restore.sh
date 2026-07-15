@@ -1702,7 +1702,7 @@ device_get_info() {
     # activation issue stuff
     case $device_type in
         iPhone4,1 | iPhone5,2 | iPad2,7 | iPad3,[26] ) device_9900candidate=1;;
-        iPhone3,[12] | iPad2,2 | iPad3,3 ) device_activationissue=1;;
+        iPhone[123],[12] | iPad1,1 | iPad2,2 | iPad3,3 ) device_activationissue=1;;
     esac
     # enable activation records flag if device is a5(x)/a6(x), normal mode, and activated
     if [[ $device_proc == 5 || $device_proc == 6 ]] && [[ -z $device_disable_actrec ]] &&
