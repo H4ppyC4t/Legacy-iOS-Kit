@@ -1725,11 +1725,11 @@ device_get_info() {
 
     # powdersn0w device and base version support
     case $device_type in
-        iPhone[345],* | iPad1,1 | iPad2,[4567] | iPad3,* | iPod[35],1 ) device_can_powder=1;;
+        iPhone[345],* | iPad1,1 | iPad[23],* | iPod[35],1 ) device_can_powder=1;;
     esac
     check_vers="7.1"
     case $device_type in
-        iPad2,[567] | iPad3,[456] | iPhone5,* | iPod5,1 ) check_vers="7";;
+        iPad2,[123567] | iPad3,[456] | iPhone5,* | iPod5,1 ) check_vers="7";;
     esac
     base_vers="$check_vers.x"
     if [[ $device_proc == 4 ]]; then
