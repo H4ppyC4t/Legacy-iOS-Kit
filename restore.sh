@@ -2932,10 +2932,7 @@ ipsw_preference_set() {
         print "* When this option is enabled, your device will be jailbroken on restore."
         print "* I recommend to enable this option to have the jailbreak and Cydia pre-installed."
         print "* This option is enabled by default (Y). Select this option if unsure."
-        if [[ $device_type == "iPad2"* && $device_target_vers == "4.3"* && $device_target_tethered != 1 ]]; then
-            warn "This will be a semi-tethered jailbreak. checkm8-a5 is required to boot to a jailbroken state."
-            print "* To boot jailbroken later, go to: Main Menu -> Just Boot"
-        elif [[ $device_type == "iPhone3,3" ]]; then
+        if [[ $device_type == "iPhone3,3" ]]; then
             case $device_target_vers in
                 4.2.9 | 4.2.10 )
                     warn "This will be a semi-tethered jailbreak."
@@ -4385,6 +4382,9 @@ patch_iboot() {
     mv $iboot_name iBoot.orig
     "$dir/xpwntool" iBoot.orig iBoot.dec -iv $iboot_iv -k $iboot_key
     "$dir/iBoot32Patcher" iBoot.dec iBoot.pwned $rsa "$@"
+    if [[ ! -s iBoot.pwned ]]; then
+        error "Failed to patch iBoot."
+    fi
     "$dir/xpwntool" iBoot.pwned iBoot -t iBoot.orig
     if [[ $device_type == "iPad1,1" || $device_type == "iPhone5,"* ]]; then
         # ibec
@@ -4536,7 +4536,7 @@ ipsw_prepare_ios4multipart() {
     local ExtraArr=("--boot-partition" "--boot-ramdisk" "--logo4")
     case $device_target_vers in
         4.2.9 | 4.2.10 ) :;;
-        * ) ExtraArr+=("--433");;
+        * ) [[ $device_proc != 5 ]] && ExtraArr+=("--433");;
     esac
     local bootargs="$device_bootargs_default"
     if [[ $ipsw_verbose == 1 ]]; then
@@ -6709,7 +6709,10 @@ ipsw_prepare() {
             elif [[ $device_target_tethered == 1 ]]; then
                 ipsw_prepare_tethered
             elif [[ $device_target_powder == 1 ]]; then
-                ipsw_prepare_powder
+                case $device_target_vers in
+                    4.3* ) ipsw_prepare_ios4powder;;
+                    * ) ipsw_prepare_powder;;
+                esac
             elif [[ $device_target_vers != "$device_latest_vers" || $ipsw_gasgauge_patch == 1 ]]; then
                 ipsw_prepare_32bit
             fi
