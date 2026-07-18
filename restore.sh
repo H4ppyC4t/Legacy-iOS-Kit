@@ -8488,7 +8488,7 @@ menu_datamanage() {
     print "* For more info about Data Management options, go here: https://github.com/LukeZGD/Legacy-iOS-Kit/wiki/Data-Management"
     if [[ -z $sshfs ]]; then
         warn "sshfs not installed. Mount Device options are not available. Install sshfs from your package manager to fix this"
-        [[ $platform == "macos" ]] && print "* On macOS, install fuse-t-sshfs"
+        [[ $platform == "macos" ]] && print "* On macOS, install fuse-t-sshfs. See the wiki page linked above for more details"
     else
         menu_items+=("Mount Device" "Mount Device (Raw File System)" "Cydia App Install")
     fi
@@ -10389,7 +10389,7 @@ menu_flags() {
             fi
         fi
         case $device_type in
-            iPhone3,[13] | iPad1,1 | iPod3,1 ) menu_items+=("Enable skip-first flag");;
+            iPhone3,[13] | iPad1,1 | iPod[34],1 ) menu_items+=("Enable skip-first flag");;
         esac
         menu_items+=("Enable no-finder flag" "Go Back")
         menu_print_info
@@ -11038,8 +11038,8 @@ device_dump() {
         fi
     fi
     if [[ ! -e $dump ]]; then
-        error "Failed to dump $arg from device. Please run the script again" \
-              "* Make sure to have OpenSSH installed."
+        error "Failed to dump $arg from device. Make sure to have OpenSSH installed." \
+              "* If your device is not activated, you can also use --disable-actrec flag to skip this."
     fi
     log "Dumping $arg done: $dump"
 }
