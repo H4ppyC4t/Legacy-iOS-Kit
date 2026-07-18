@@ -3303,7 +3303,7 @@ ipsw_prepare_openssh_plist() {
 ipsw_prepare_rebootsh() {
     log "Generating reboot.sh"
     echo '#!/bin/bash' | tee reboot.sh
-    echo "mount_hfs /dev/disk0s1s1 /mnt1; mount_hfs /dev/disk0s1s2 /mnt2" | tee -a reboot.sh
+    echo "mount_hfs /dev/disk0s1s1 /mnt1; mount_hfs /dev/disk0s1s2 /mnt2; nvram -c" | tee -a reboot.sh
     if [[ $1 == "aquila" ]]; then
         echo "mv /mnt1/System/Library/LaunchDaemons/com.apple.mDNSResponder.plist_ /mnt1/Library/LaunchDaemons/com.apple.mDNSResponder.plist" | tee -a reboot.sh
         echo "mv /mnt1/Library/LaunchDaemons/com.apple.sandboxd.plist /mnt1/System/Library/LaunchDaemons/" | tee -a reboot.sh
@@ -9344,11 +9344,6 @@ menu_ipsw() {
                     [76543].* ) ipsw_canhacktivate=1;;
                 esac
             ;;
-            *"powdersn0w"* )
-                case $device_latest_vers in
-                    [76543].* ) ipsw_canhacktivate=1;;
-                esac
-            ;;
             [6543]* )
                 device_target_vers="$1"
                 if [[ $device_target_vers != "3.0"* ]]; then
@@ -9482,8 +9477,9 @@ menu_ipsw() {
                     iPhone3,1 ) lo=4.0; hi=7.1.1;;
                     iPhone3,2 ) lo=6.0; hi=7.1.1;;
                     iPhone3,3 ) lo=4.2.6; hi=7.1.1;;
-                    iPhone4,1 | iPad2,[123] ) lo=5.0;;
-                    iPad2,4 | iPad3,[123]   ) lo=5.1;;
+                    iPhone4,1 ) lo=5.0;;
+                    iPad2,[123] ) lo=4.3;;
+                    iPad2,4 | iPad3,[123] ) lo=5.1;;
                     iPhone5,[34] ) lo=7.0;;
                     iPad1,1 ) lo=3.2; hi=5.1;;
                     iPod3,1 ) lo=3.1.1; hi=5.1;;
@@ -10640,7 +10636,7 @@ menu_usefulutilities() {
                     ;;
                     iPad1,1 | iPhone[23],* | iPod4,1 )
                         case $device_vers in
-                            3.1* | [456]* ) menu_items+=("Hacktivate Device" "Revert Hacktivation");;
+                            [34567].* ) menu_items+=("Hacktivate Device" "Revert Hacktivation");;
                         esac
                     ;;
                 esac
@@ -10668,8 +10664,8 @@ menu_usefulutilities() {
                 print "* If this is not what you want, you might be looking for the \"Restore/Downgrade\" option instead."
                 print "* From there, enable both \"Jailbreak Option\" and \"Hacktivate Option.\""
                 echo
-                print "* Hacktivate Device: This will patch lockdownd on your device."
-                print "* Hacktivation is for iOS versions 3.1 to 6.1.6."
+                print "* Hacktivate Device: This will patch lockdownd/skip activation on your device."
+                print "* Hacktivation is for iOS versions 3.0 to 7.1.2."
                 select_yesno
                 if [[ $? != 1 ]]; then
                     continue
@@ -11171,6 +11167,7 @@ device_activate() {
 device_hacktivate() {
     local type="$device_type"
     local build="$device_build"
+    local dap=
     if [[ $device_proc == 4 && $device_type != "iPhone2,1" ]]; then
         type="iPhone2,1"
         case $device_vers in
@@ -11178,13 +11175,20 @@ device_hacktivate() {
             5.1.1 ) build="9B206";;
             6.1   ) build="10B141";;
         esac
-        log "Checking ideviceactivation status..."
-        $ideviceactivation activate
     fi
     local patch="../resources/firmware/FirmwareBundles/Down_${type}_${device_vers}_${build}.bundle/lockdownd.patch"
+    if [[ $device_type == "iPhone3,3" && $device_vers == "4.2"* ]] ||
+       [[ $device_type == "iPhone2,1" && $device_vers == "3.0"* ]] ||
+       [[ $device_proc == 1 && $device_vers == "3."* && $device_vers != "3.1.3" ]] ||
+       [[ $device_vers_maj == 7 ]]; then
+       dap=1
+    elif [[ ! -s $patch ]]; then
+        error "Detected that there is no lockdownd patch for this device/version combination. Cannot continue."
+    fi
     device_iproxy
+    device_ssh_message
     device_sshpass
-    if [[ $device_type == "iPhone3,3" && $device_vers == "4.2"* ]]; then
+    if [[ $dap == 1 ]]; then
         echo '<plist><dict><key>com.apple.mobile.lockdown_cache-ActivationState</key><string>FactoryActivated</string></dict></plist>' > data_ark.plist
         log "Copying data_ark.plist to device"
         $scp -P $ssh_port data_ark.plist root@127.0.0.1:/var/root/Library/Lockdown/data_ark.plist
@@ -11201,8 +11205,14 @@ device_hacktivate() {
     fi
     log "Getting lockdownd"
     $scp -P $ssh_port root@127.0.0.1:/usr/libexec/lockdownd .
+    if [[ ! -s lockdownd ]]; then
+        error "Getting lockdownd failed. Cannot continue."
+    fi
     log "Patching lockdownd"
     $bspatch lockdownd lockdownd.patched "$patch"
+    if [[ ! -s lockdownd.patched ]]; then
+        error "Patching lockdownd failed. Cannot continue."
+    fi
     log "Renaming original lockdownd"
     $ssh -p $ssh_port root@127.0.0.1 "[[ ! -e /usr/libexec/lockdownd.orig ]] && mv /usr/libexec/lockdownd /usr/libexec/lockdownd.orig"
     log "Copying patched lockdownd to device"
@@ -11213,11 +11223,35 @@ device_hacktivate() {
 
 device_reverthacktivate() {
     device_iproxy
-    print "* The default root password is: alpine"
+    device_ssh_message
     device_sshpass
-    log "Reverting lockdownd"
-    $ssh -p $ssh_port root@127.0.0.1 "[[ -e /usr/libexec/lockdownd.orig ]] && rm /usr/libexec/lockdownd && mv /usr/libexec/lockdownd.orig /usr/libexec/lockdownd"
-    $ssh -p $ssh_port root@127.0.0.1 "chmod +x /usr/libexec/lockdownd; reboot"
+    if (( device_vers_maj <= 6 )); then
+        log "Getting lockdownd.orig"
+        $scp -P $ssh_port root@127.0.0.1:/usr/libexec/lockdownd.orig .
+        if [[ -s lockdownd.orig ]]; then
+            mv lockdownd.orig lockdownd
+        else
+            warn "Getting lockdownd.orig failed. Will need to grab lockdownd from IPSW for $device_type-$device_vers."
+            ipsw_path="../${device_type}_${device_vers}_${device_build}_Restore"
+            if [[ ! -s "$ipsw_path.ipsw" ]]; then
+                ipsw_download "$ipsw_path" $device_vers $device_build
+            fi
+            device_target_build="$device_build"
+            device_fw_key_check
+            local name=$(echo $device_fw_key | $jq -j '.keys[] | select(.image == "RootFS") | .filename')
+            local key=$(echo $device_fw_key | $jq -j '.keys[] | select(.image == "RootFS") | .key')
+            file_extract_from_archive "$ipsw_path.ipsw" $name
+            "$dir/dmg" extract $name rootfs.dec -k $key
+            "$dir/hfsplus" rootfs.dec extract usr/libexec/lockdownd
+            rm $name rootfs.dec
+        fi
+        if [[ ! -s lockdownd ]]; then
+            error "Getting lockdownd failed. Cannot continue."
+        fi
+        log "Copying lockdownd to device"
+        $scp -P $ssh_port lockdownd root@127.0.0.1:/usr/libexec/lockdownd
+    fi
+    $ssh -p $ssh_port root@127.0.0.1 "chmod +x /usr/libexec/lockdownd; rm -f /usr/libexec/lockdownd.orig /var/root/Library/Lockdown/data_ark.plist; reboot"
     log "Done. Your device should reboot now"
 }
 
@@ -11310,7 +11344,7 @@ device_dfuipsw() {
     ipsw_path="../$ipsw_latest_path"
     if [[ -s "$ipsw_path.ipsw" && ! -e "$ipsw_dfuipsw.ipsw" ]]; then
         ipsw_verify "$ipsw_path" "$device_target_build"
-    elif [[ ! -e "$ipsw_path.ipsw" ]]; then
+    elif [[ ! -s "$ipsw_path.ipsw" ]]; then
         ipsw_download "$ipsw_path"
     fi
     if [[ -s "$ipsw_dfuipsw.ipsw" ]]; then
