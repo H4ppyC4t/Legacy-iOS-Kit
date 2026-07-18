@@ -9476,16 +9476,15 @@ menu_ipsw() {
                 esac
             else
                 print "* Select Target IPSW to continue"
-                local lo
-                local hi
+                local lo=6.0
+                local hi=9.3.5
                 case $device_type in
                     iPhone3,1 ) lo=4.0; hi=7.1.1;;
                     iPhone3,2 ) lo=6.0; hi=7.1.1;;
                     iPhone3,3 ) lo=4.2.6; hi=7.1.1;;
-                    iPhone4,1 | iPad2,[123] ) lo=5.0; hi=9.3.5;;
-                    iPad2,* | iPad3,[123]   ) lo=5.1; hi=9.3.5;;
-                    iPhone5,[12] | iPad3,* | iPod5,1 ) lo=6.0; hi=9.3.5;;
-                    iPhone5,[34] ) lo=7.0; hi=9.3.5;;
+                    iPhone4,1 | iPad2,[123] ) lo=5.0;;
+                    iPad2,4 | iPad3,[123]   ) lo=5.1;;
+                    iPhone5,[34] ) lo=7.0;;
                     iPad1,1 ) lo=3.2; hi=5.1;;
                     iPod3,1 ) lo=3.1.1; hi=5.1;;
                     iPod4,1 ) lo=4.1; hi=6.1.5;;
