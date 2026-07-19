@@ -1705,15 +1705,16 @@ device_get_info() {
         iPhone[123],[12] | iPad1,1 | iPad2,2 | iPad3,3 ) device_activationissue=1;;
     esac
     # enable activation records flag if device is a5(x)/a6(x), normal mode, and activated
-    if [[ $device_proc == 5 || $device_proc == 6 ]] && [[ -z $device_disable_actrec ]] &&
+    if [[ $device_disable_actrec == 1 ]]; then
+        :
+    elif [[ $device_proc == 5 || $device_proc == 6 ]] &&
        [[ $device_9900candidate == 1 && $device_mode == "Normal" && $device_unactivated != 1 ]]; then
         device_actrec=1
         device_auto_actrec=1
     elif [[ -s ../saved/$device_type/activation-$device_ecid.tar ]] && (( device_proc <= 6 )); then
         device_actrec=1
         device_auto_actrec=2
-    elif [[ -z $device_disable_actrec && $device_activationissue == 1 &&
-            $device_mode == "Normal" && $device_unactivated != 1 ]]; then
+    elif [[ $device_activationissue == 1 && $device_mode == "Normal" && $device_unactivated != 1 ]]; then
         device_actrec=1
         device_auto_actrec=3
     fi
@@ -4828,7 +4829,7 @@ ipsw_prepare_specialios7() {
         mv kernelcache.release.$device_model_special kc
         "$dir/xpwntool" kc kc.new -iv $kc_iv -k $kc_key -decrypt
         cp kc.new $saves/$device_target_build/kernelcache
-        cp kc.new $ipsw_custom/kernelcache.release.$device_model # wont be used, but needed for restore
+        cp kc.new $ipsw_custom/kernelcache.release.$device_model
         log "Target devicetree"
         cp $patches/DeviceTree.n81ap.img3 $all_flash2/
     fi
@@ -5079,7 +5080,7 @@ ipsw_prepare_partition_script() {
 
 ipsw_prepare_reboot4() {
     # prepare reboot4 binary: copy over the exploit ramdisk to it
-    cp src/target/reboot4 partition
+    cp src/reboot4 partition
     dd if=/dev/zero of=partition bs=1 seek=$((0x815C)) count=$((512*1024)) conv=notrunc status=none
     dd if=$device_powder_exploit of=partition bs=1 seek=$((0x815C)) conv=notrunc status=none
 }
@@ -10426,6 +10427,7 @@ menu_flags() {
                 select_yesno "Do you want to disable the activation-records flag?" 0
                 if [[ $? != 0 ]]; then
                     device_actrec=
+                    device_auto_actrec=
                     device_disable_actrec=1
                     back=1
                 fi
@@ -11526,12 +11528,12 @@ menu_justboot() {
                 echo "$vers" > $recent
                 mode="device_justboot"
                 if [[ $device_type == "iPod4,1" && $vers == "11"* ]]; then
-                    mode="device_justboot_touch4ios7"
+                    mode="device_justboot_specialios7"
                 fi
             ;;
             "(*) iOS 7.1.2" )
                 echo "11D257" > $recent
-                mode="device_justboot_touch4ios7"
+                mode="device_justboot_specialios7"
             ;;
             "Custom Bootargs" ) read -p "$(input 'Enter custom bootargs: ')" device_bootargs;;
             "Go Back" ) back=1;;
@@ -11672,14 +11674,14 @@ device_justboot() {
     device_ramdisk justboot
 }
 
-device_justboot_touch4ios7() {
+device_justboot_specialios7() {
     local patches="../resources/patch/touch4-ios7"
     local saves="../saved/touch4-ios7"
     if [[ -d "../saved/$device_type/touch4-ios7" ]]; then
         mv "../saved/$device_type/touch4-ios7" $saves
     fi
     if [[ ! -s $saves/$device_ecid ]]; then
-        error "Cannot find device file for $device_ecid in saved. Need to restore to iOS 7.1.2 first."
+        error "Cannot find device file for $device_ecid in saved. Need to restore/create an IPSW for iOS 7.1.2 first."
     fi
 
     source $saves/$device_ecid
@@ -12494,7 +12496,7 @@ if [[ $main_argmode == "device_justboot" && -z $device_rd_build ]]; then
     print "* Example usage: ./restore.sh --just-boot --build-id=12H321"
     error "Just Boot (--just-boot) requires specifying build ID (--build-id=<id>)"
 elif [[ $main_argmode == "device_justboot" && $device_type == "iPod4,1" && $device_rd_build == "11D257" ]]; then
-    main_argmode="device_justboot_touch4ios7"
+    main_argmode="device_justboot_specialios7"
 fi
 
 trap "clean" EXIT
