@@ -11006,7 +11006,7 @@ device_dump() {
             log "Creating $arg.tar"
             $ssh -p $ssh_port ${ssh_user}@127.0.0.1 "mkdir -p /tmp/$dmp2; find $dmps; cp -R $dmps/* /tmp/$dmp2"
             #$ssh -p $ssh_port ${ssh_user}@127.0.0.1 "cd /tmp/$dmp2/activation_records; mv *_record.plist activation_record.plist"
-            $ssh -p $ssh_port ${ssh_user}@127.0.0.1 "cd /tmp; tar -cvf $arg.tar $dmp2"
+            device_dumpactivation
             log "Copying $arg.tar"
             $scp -P $ssh_port ${ssh_user}@127.0.0.1:/tmp/$arg.tar .
             mv $arg.tar $arg-$device_ecid.tar
@@ -11039,6 +11039,42 @@ device_dump() {
               "* If your device is not activated, you can also use --disable-actrec flag to skip this."
     fi
     log "Dumping $arg done: $dump"
+}
+
+device_dumpactivation() {
+    local tmp="/tmp"
+    local var="/var"
+    if [[ $1 == "sshrd" ]]; then
+        tmp="/mnt2/tmp"
+        var="/mnt2"
+    fi
+
+    local actrec_files=(
+        "mobile/Media/iTunes_Control/iTunes/IC-Info.sidv"
+        "mobile/Library/FairPlay/iTunes_Control/iTunes/IC-Info.sisv"
+        "mobile/Library/Preferences/com.apple.purplebuddy.plist"
+        "wireless/Library/Preferences/com.apple.commcenter.plist"
+    )
+
+    $ssh -p "$ssh_port" "${ssh_user}@127.0.0.1" "
+    mkdir -p $tmp/private/var
+    cd $tmp/private/var
+    mkdir -p \
+        mobile/Media/iTunes_Control/iTunes \
+        mobile/Library/FairPlay/iTunes_Control/iTunes \
+        mobile/Library/Preferences \
+        wireless/Library/Preferences
+
+    cd $tmp
+    for f in ${actrec_files[*]}; do
+        cp \"$var/\$f\" \"private/var/\$f\"
+    done
+
+    chown -R 501:501 private/var/mobile
+    chown -R 25:25 private/var/wireless
+
+    tar -cvf \"activation.tar\" private
+    "
 }
 
 device_dumpbb() {
@@ -11132,7 +11168,7 @@ device_dumprd() {
     log "Creating activation.tar"
     $ssh -p $ssh_port root@127.0.0.1 "mkdir -p $tmp/private/var/$dmp2; cp -R /mnt2/$dmps/* $tmp/private/var/$dmp2"
     #$ssh -p $ssh_port root@127.0.0.1 "cd $tmp/$dmp2/activation_records; mv *_record.plist activation_record.plist"
-    $ssh -p $ssh_port root@127.0.0.1 "cd $tmp; tar -cvf $tmp/activation.tar private/var/$dmp2"
+    device_dumpactivation sshrd
     log "Copying activation.tar"
     print "* Reminder to backup dump tars if needed"
     $scp -P $ssh_port root@127.0.0.1:$tmp/activation.tar .
