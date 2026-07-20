@@ -3581,16 +3581,31 @@ ipsw_prepare_keys() {
     local comp="$1"
     local getcomp="$1"
     case $comp in
-        "RestoreLogo" ) getcomp="AppleLogo";;
-        *"KernelCache" ) getcomp="Kernelcache";;
+        "RestoreLogo"       ) getcomp="AppleLogo";;
+        *"KernelCache"      ) getcomp="Kernelcache";;
         "RestoreDeviceTree" ) getcomp="DeviceTree";;
     esac
+
+    local getcomp_bm="$comp"
+    case $comp in
+        "RestoreRamdisk" ) getcomp_bm="RestoreRamDisk";;
+    esac
+
     local fw_key="$device_fw_key"
     if [[ $2 == "base" ]]; then
         fw_key="$device_fw_key_base"
     fi
-    local name=$(echo $fw_key | $jq -j '.keys[] | select(.image == "'$getcomp'") | .filename')
+
+    local name
+    local name_bm=
+    [[ -s BuildManifest.plist ]] && name_bm=$($PlistBuddy -c "Print BuildIdentities:0:Manifest:$getcomp_bm:Info:Path" BuildManifest.plist | tr -d '"')
+    if [[ -n $name_bm ]]; then
+        name=$(basename $name_bm)
+    else
+        name=$(echo $fw_key | $jq -j '.keys[] | select(.image == "'$getcomp'") | .filename')
+    fi
     [[ $name == *".dmg" ]] && name="${name%%.dmg*}.dmg"
+
     local iv=$(echo $fw_key | $jq -j '.keys[] | select(.image == "'$getcomp'") | .iv')
     local key=$(echo $fw_key | $jq -j '.keys[] | select(.image == "'$getcomp'") | .key')
     if [[ -z $name && $device_proc != 1 ]]; then
@@ -3655,19 +3670,36 @@ ipsw_prepare_paths() {
     local comp="$1"
     local getcomp="$1"
     case $comp in
-        "BatteryPlugin" ) getcomp="GlyphPlugin";;
+        "BatteryPlugin"             ) getcomp="GlyphPlugin";;
         "NewAppleLogo" | "APTicket" ) getcomp="AppleLogo";;
-        "NewRecoveryMode" ) getcomp="RecoveryMode";;
-        "NewiBoot" ) getcomp="iBoot";;
+        "NewRecoveryMode"           ) getcomp="RecoveryMode";;
+        "NewiBoot"                  ) getcomp="iBoot";;
     esac
+
+    local getcomp_bm="$getcomp"
+    case $comp in
+        "GlyphPlugin"    ) getcomp_bm="BatteryPlugin";;
+        "RestoreRamdisk" ) getcomp_bm="RestoreRamDisk";;
+    esac
+
     local fw_key="$device_fw_key"
     if [[ $2 == "base" ]]; then
         fw_key="$device_fw_key_base"
     fi
-    local name=$(echo $fw_key | $jq -j '.keys[] | select(.image == "'$getcomp'") | .filename')
+
+    local name
+    local name_bm
+    [[ $getcomp != "manifest" && -s BuildManifest.plist ]] && name_bm=$($PlistBuddy -c "Print BuildIdentities:0:Manifest:$getcomp_bm:Info:Path" BuildManifest.plist | tr -d '"')
+    if [[ -n $name_bm ]]; then
+        name=$(basename $name_bm)
+    else
+        name=$(echo $fw_key | $jq -j '.keys[] | select(.image == "'$getcomp'") | .filename')
+    fi
+    [[ $name == *".dmg" ]] && name="${name%%.dmg*}.dmg"
     if [[ -z $name && $getcomp != "manifest" ]]; then
         error "Issue with firmware keys: Failed getting $getcomp. Check The Apple Wiki or your wikiproxy"
     fi
+
     local str="<key>$comp</key><dict><key>File</key><string>$all_flash/"
     local str2
     local logostuff
@@ -3829,13 +3861,18 @@ ipsw_prepare_bundle() {
     mkdir -p $FirmwareBundle
 
     log "Generating firmware bundle for $device_type-$vers ($build) $1..."
+
+    [[ $device_proc != 1 ]] && file_extract_from_archive "$ipsw_p.ipsw" BuildManifest.plist
     file_extract_from_archive "$ipsw_p.ipsw" $all_flash/manifest
     mv manifest $FirmwareBundle/
-    local ramdisk_name=$(echo "$key" | $jq -j '.keys[] | select(.image == "RestoreRamdisk") | .filename')
+
+    local ramdisk_name
+    [[ -s BuildManifest.plist ]] && ramdisk_name="$($PlistBuddy -c "Print BuildIdentities:0:Manifest:RestoreRamDisk:Info:Path" BuildManifest.plist | tr -d '"')"
+    [[ -z $ramdisk_name ]] && ramdisk_name=$(echo "$key" | $jq -j '.keys[] | select(.image == "RestoreRamdisk") | .filename')
     ramdisk_name="${ramdisk_name%%.dmg*}.dmg"
     local RamdiskIV=$(echo "$key" | $jq -j '.keys[] | select(.image == "RestoreRamdisk") | .iv')
     local RamdiskKey=$(echo "$key" | $jq -j '.keys[] | select(.image == "RestoreRamdisk") | .key')
-    if [[ -z $ramdisk_name ]]; then
+    if [[ -z $RamdiskIV ]]; then
         error "Issue with firmware keys: Failed getting RestoreRamdisk. Check The Apple Wiki or your wikiproxy"
     fi
     file_extract_from_archive "$ipsw_p.ipsw" $ramdisk_name
@@ -3865,10 +3902,12 @@ ipsw_prepare_bundle() {
         RootSize=$(cat options.$device_model.plist | grep -i SystemPartitionSize -A 1 | grep -oPm1 "(?<=<integer>)[^<]+")
     fi
     RootSize=$((RootSize+30))
-    local rootfs_name="$(echo "$key" | $jq -j '.keys[] | select(.image == "RootFS") | .filename')"
+    local rootfs_name
+    [[ -s BuildManifest.plist ]] && rootfs_name="$($PlistBuddy -c "Print BuildIdentities:0:Manifest:OS:Info:Path" BuildManifest.plist | tr -d '"')"
+    [[ -z $rootfs_name ]] && rootfs_name="$(echo "$key" | $jq -j '.keys[] | select(.image == "RootFS") | .filename')"
     rootfs_name="${rootfs_name%%.dmg*}.dmg"
     local rootfs_key="$(echo "$key" | $jq -j '.keys[] | select(.image == "RootFS") | .key')"
-    if [[ -z $rootfs_name ]]; then
+    if [[ -z $rootfs_key ]]; then
         error "Issue with firmware keys: Failed getting RootFS. Check The Apple Wiki or your wikiproxy"
     fi
     echo '<plist><dict>' > $NewPlist
