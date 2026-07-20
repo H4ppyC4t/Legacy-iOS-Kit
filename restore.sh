@@ -5575,7 +5575,7 @@ ipsw_prepare_ios4powder() {
     local ExtraArr=("--boot-partition" "--boot-ramdisk" "--logo4")
     case $device_target_vers in
         4.3.[45] ) :;;
-        * ) [[ $device_proc != 5 ]] && ExtraArr+=("--433");;
+        * ) ExtraArr+=("--433");;
     esac
     local bootargs="$device_bootargs_default"
     if [[ $ipsw_verbose == 1 ]]; then
@@ -9550,7 +9550,7 @@ menu_ipsw() {
                     iPhone3,2 ) lo=6.0; hi=7.1.1;;
                     iPhone3,3 ) lo=4.2.6; hi=7.1.1;;
                     iPhone4,1 ) lo=5.0;;
-                    iPad2,[123] ) lo=4.3;;
+                    iPad2,[123] ) lo=4.3.4;;
                     iPad2,4 | iPad3,[123] ) lo=5.1;;
                     iPhone5,[34] ) lo=7.0;;
                     iPad1,1 ) lo=3.2; hi=5.1;;
