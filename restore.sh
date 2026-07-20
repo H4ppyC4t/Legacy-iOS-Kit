@@ -4547,7 +4547,7 @@ ipsw_prepare_ios4multipart() {
     local ExtraArr=("--boot-partition" "--boot-ramdisk" "--logo4")
     case $device_target_vers in
         4.2.9 | 4.2.10 ) :;;
-        * ) [[ $device_proc != 5 ]] && ExtraArr+=("--433");;
+        * ) ExtraArr+=("--433");;
     esac
     local bootargs="$device_bootargs_default"
     if [[ $ipsw_verbose == 1 ]]; then
@@ -5536,7 +5536,7 @@ ipsw_prepare_ios4powder() {
     local ExtraArr=("--boot-partition" "--boot-ramdisk" "--logo4")
     case $device_target_vers in
         4.3.[45] ) :;;
-        * ) ExtraArr+=("--433");;
+        * ) [[ $device_proc != 5 ]] && ExtraArr+=("--433");;
     esac
     local bootargs="$device_bootargs_default"
     if [[ $ipsw_verbose == 1 ]]; then
