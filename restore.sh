@@ -1748,7 +1748,7 @@ device_get_info() {
 
     # dra v6 support
     case $device_type in
-        iPhone4,1 | iPod4,1 ) device_can_drav6=1;;
+        iPad2,[123] | iPhone4,1 | iPod4,1 ) device_can_drav6=1;;
     esac
 }
 
@@ -9575,6 +9575,9 @@ menu_ipsw() {
                 esac
                 print "* Any iOS version from $lo to $hi is supported"
             fi
+            if [[ $device_proc == 5 && $device_base_drav6 == 1 ]]; then
+                warn "DRA v6 support for iPad 2 is experimental and may not work on all devices and target versions."
+            fi
             echo
             local text2="(iOS $base_vers)"
             if [[ -n $ipsw_base_path ]]; then
@@ -9957,9 +9960,12 @@ ipsw_print_warnings() {
     if [[ $1 == "powder" ]]; then
         case $device_target_build in
             8[ABC]* ) warn "iOS 4.2.1 and lower are hit or miss. It may not restore/boot properly";;
-            8*  ) [[ $device_type == "iPhone3,"* ]] && warn "Not all devices support iOS 4 versions. It may not restore/boot properly";;
+            8*  ) [[ $device_type == "iPhone3,"* || $device_proc == 5 ]] && warn "Not all devices support iOS 4 versions. It may not restore/boot properly";;
             7[CDE]* ) warn "Not all devices support iOS 3 versions. It may not restore/boot properly";;
         esac
+        if [[ $device_proc == 5 && $device_target_vers == "4."* ]]; then
+            warn "You may need checkm8-a5 to manually enable the exploit after the restore to iOS 4.3.x."
+        fi
         return
     fi
     case $device_type in
