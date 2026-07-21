@@ -2541,6 +2541,12 @@ device_fw_key_server() {
     local wikiproxy="wikiproxy-go_$platform-$(uname -m)"
     local wikiproxy_ipw="wikiproxy-go-ipw_$platform-$(uname -m)"
     local port=8889
+    local current="$(cat ../saved/$wikiproxy-version 2>/dev/null)"
+    local latest="44af916"
+
+    if [[ $current != "$latest" ]]; then
+        rm ../saved/$wikiproxy ../saved/$wikiproxy_ipw
+    fi
 
     if [[ ! -s ../saved/$wikiproxy || ! -s ../saved/$wikiproxy_ipw ]]; then
         file_download https://github.com/LukeZGD/wikiproxy-go/releases/download/latest/$wikiproxy.zip $wikiproxy.zip
@@ -2550,6 +2556,7 @@ device_fw_key_server() {
         fi
         mv main ../saved/$wikiproxy
         mv main-ipw ../saved/$wikiproxy_ipw
+        echo "$latest" > ../saved/$wikiproxy-version
     fi
 
     if [[ $1 == "ipw" ]]; then
@@ -2610,7 +2617,8 @@ device_fw_key_check() {
         mkdir -p "$keys_path"
         local try=("https://raw.githubusercontent.com/LukeZGD/Legacy-iOS-Kit-Keys/master/$device_type/$build/index.html"
                    "http://127.0.0.1:8889/firmware/$device_type/$build"
-                   "http://127.0.0.1:8890/firmware/$device_type/$build")
+                   "http://127.0.0.1:8890/firmware/$device_type/$build"
+                   "http://127.0.0.1:8888/firmware/$device_type/$build")
         for i in "${try[@]}"; do
             [[ $i == *"127.0.0.1:8889"* ]] && device_fw_key_server
             [[ $i == *"127.0.0.1:8890"* ]] && device_fw_key_server ipw
