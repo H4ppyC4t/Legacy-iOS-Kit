@@ -3593,7 +3593,7 @@ ipsw_prepare_keys() {
     esac
 
     local getcomp_bm="$comp"
-    case $comp in
+    case $getcomp in
         "RestoreRamdisk" ) getcomp_bm="RestoreRamDisk";;
     esac
 
@@ -3683,7 +3683,7 @@ ipsw_prepare_paths() {
     esac
 
     local getcomp_bm="$getcomp"
-    case $comp in
+    case $getcomp in
         "GlyphPlugin"    ) getcomp_bm="BatteryPlugin";;
         "RestoreRamdisk" ) getcomp_bm="RestoreRamDisk";;
     esac
