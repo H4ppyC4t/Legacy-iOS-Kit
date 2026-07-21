@@ -634,16 +634,18 @@ set_tool_paths() {
     sshfs="$(command -v sshfs)"
 
     local ssh_v="$($ssh2 -V 2>&1)"
-
-    if echo "$ssh_v" | grep -Eq 'OpenSSH_([89]|1[0-9])\.|OpenSSH_8\.[5-9]'; then
-        cat ../resources/ssh_config > ssh_config
-        echo "    PubkeyAcceptedAlgorithms +ssh-rsa" >> ssh_config
-    elif echo "$ssh_v" | grep -q 'OpenSSH_6'; then
-        sed -e 's/^    Add/#Add/' \
-            -e 's/^    HostKeyAlgorithms/#HostKeyAlgorithms/' \
-            ../resources/ssh_config > ssh_config
-    else
-        cp ../resources/ssh_config ssh_config
+    local re='OpenSSH_([0-9]+)\.([0-9]+)'
+    cp ../resources/ssh_config ssh_config
+    if [[ "$ssh_v" =~ $re ]]; then
+        local major="${BASH_REMATCH[1]}"
+        local minor="${BASH_REMATCH[2]}"
+        # OpenSSH 8.5 or newer
+        if (( major > 8 || (major == 8 && minor >= 5) )); then
+            echo "    PubkeyAcceptedAlgorithms +ssh-rsa" >> ssh_config
+        # OpenSSH 7.1 or older
+        elif (( major < 7 || (major == 7 && minor <= 1) )); then
+            sed -e 's,Add,#Add,g' -e 's,HostKeyA,#HostKeyA,g' ../resources/ssh_config > ssh_config
+        fi
     fi
 
     scp2+=" -F ./ssh_config"
@@ -3593,7 +3595,7 @@ ipsw_prepare_keys() {
     esac
 
     local getcomp_bm="$comp"
-    case $getcomp in
+    case $comp in
         "RestoreRamdisk" ) getcomp_bm="RestoreRamDisk";;
     esac
 
