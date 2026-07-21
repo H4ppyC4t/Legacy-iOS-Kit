@@ -633,13 +633,19 @@ set_tool_paths() {
     primepwn+="$dir/primepwn"
     sshfs="$(command -v sshfs)"
 
-    cp ../resources/ssh_config . 2>/dev/null
-    if [[ $(ssh -V 2>&1 | grep -c SSH_8.8) == 1 || $(ssh -V 2>&1 | grep -c SSH_8.9) == 1 ||
-          $(ssh -V 2>&1 | grep -c SSH_9.) == 1 || $(ssh -V 2>&1 | grep -c SSH_1) == 1 ]]; then
+    local ssh_v="$($ssh2 -V 2>&1)"
+
+    if echo "$ssh_v" | grep -Eq 'OpenSSH_([89]|1[0-9])\.|OpenSSH_8\.[5-9]'; then
+        cat ../resources/ssh_config > ssh_config
         echo "    PubkeyAcceptedAlgorithms +ssh-rsa" >> ssh_config
-    elif [[ $(ssh -V 2>&1 | grep -c SSH_6) == 1 ]]; then
-        cat ../resources/ssh_config | sed "s,Add,#Add,g" | sed "s,HostKeyA,#HostKeyA,g" > ssh_config
+    elif echo "$ssh_v" | grep -q 'OpenSSH_6'; then
+        sed -e 's/^    Add/#Add/' \
+            -e 's/^    HostKeyAlgorithms/#HostKeyAlgorithms/' \
+            ../resources/ssh_config > ssh_config
+    else
+        cp ../resources/ssh_config ssh_config
     fi
+
     scp2+=" -F ./ssh_config"
     ssh2+=" -F ./ssh_config"
 }
