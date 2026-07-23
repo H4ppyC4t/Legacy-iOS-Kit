@@ -3135,6 +3135,9 @@ ipsw_download() {
     if [[ -n $2 && -n $3 ]]; then
         version="$2"
         build_id="$3"
+    elif [[ $2 == "base" ]]; then
+        version="$device_base_vers"
+        build_id="$device_base_build"
     elif [[ $2 == "latest" ]]; then
         version="$device_latest_vers"
         build_id="$device_latest_build"
@@ -3990,12 +3993,13 @@ ipsw_prepare_bundle() {
     elif [[ $1 == "target" && $vers == "4"* ]]; then
         echo "<key>Firmware</key><dict>" >> $NewPlist
         ipsw_prepare_keys iBSS $1
+        ipsw_prepare_keys RestoreDeviceTree $1
+        ipsw_prepare_keys RestoreKernelCache $1
         ipsw_prepare_keys RestoreRamdisk $1
         echo "</dict>" >> $NewPlist
     elif [[ $ipsw_isbeta_needspatch == 1 ]]; then
         echo "<key>FirmwarePatches</key><dict>" >> $NewPlist
         ipsw_prepare_keys RestoreDeviceTree $1
-        ipsw_prepare_keys RestoreLogo $1
         ipsw_prepare_keys RestoreKernelCache $1
         ipsw_prepare_keys RestoreRamdisk $1
         echo "</dict>" >> $NewPlist
@@ -4019,11 +4023,10 @@ ipsw_prepare_bundle() {
             :
         else
             ipsw_prepare_keys RestoreDeviceTree $1
-            ipsw_prepare_keys RestoreLogo $1
         fi
         if [[ $1 == "target" ]]; then
             case $vers in
-                [457]* ) ipsw_prepare_keys RestoreKernelCache $1;;
+                [57]* ) ipsw_prepare_keys RestoreKernelCache $1;;
                 * ) ipsw_prepare_keys KernelCache $1;;
             esac
         elif [[ $device_proc == 1 && $device_target_vers == "4.2.1" ]]; then
@@ -6524,8 +6527,6 @@ restore_deviceprepare() {
                 shsh_save version $device_latest_vers
                 device_enter_mode pwnDFU
                 return
-            elif [[ $device_base_drav6 == 1 ]]; then
-                shsh_save version $device_base_vers
             elif [[ $device_target_other != 1 && $device_target_powder != 1 ]]; then
                 shsh_save
             fi
@@ -6789,6 +6790,7 @@ ipsw_prepare() {
             elif [[ $device_target_tethered == 1 ]]; then
                 ipsw_prepare_tethered
             elif [[ $device_target_powder == 1 ]]; then
+                [[ $device_base_drav6 == 1 ]] && shsh_save version $device_base_vers
                 case $device_target_vers in
                     4.3* ) ipsw_prepare_ios4powder;;
                     * ) ipsw_prepare_powder;;
@@ -9817,7 +9819,7 @@ menu_ipsw() {
             "Select Target SHSH" ) menu_shsh_browse "$1";;
             "Select Base SHSH" ) menu_shsh_browse "base";;
             "Download Target IPSW" ) ipsw_download "../$newpath";;
-            "Download Base IPSW" ) ipsw_download "../$ipsw_latest_path" latest;;
+            "Download Base IPSW" ) ipsw_download "../${device_type}_${device_base_vers}_${device_base_build}_Restore" base;;
             "Select Apple Logo" ) menu_logo_browse "boot";;
             "Select Recovery Logo" ) menu_logo_browse "recovery";;
             "Custom Bootargs" ) read -p "$(input 'Enter custom bootargs: ')" device_bootargs;;
