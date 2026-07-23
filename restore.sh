@@ -1748,7 +1748,7 @@ device_get_info() {
 
     # dra v6 support
     case $device_type in
-        iPad2,[123] | iPhone4,1 | iPod4,1 ) device_can_drav6=1;;
+        iPad2,1 | iPhone4,1 | iPod4,1 ) device_can_drav6=1;;
     esac
 }
 
